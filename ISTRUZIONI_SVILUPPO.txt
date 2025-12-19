@@ -1,0 +1,21 @@
+COME RIPRENDERE IL LAVORO SU EPAL MANAGER
+===========================================
+
+Il progetto si trova in questa cartella:
+C:\Users\r3bus\.gemini\antigravity\scratch\Epal-Manager
+
+Quando riaccendi il PC e vuoi fare modifiche con l'AI o da solo:
+
+1. Apri il terminale (PowerShell o CMD).
+2. Entra nella cartella del progetto:
+   cd C:\Users\r3bus\.gemini\antigravity\scratch\Epal-Manager
+
+3. Per avviare la modalità modifica (sito web):
+   npm run dev
+
+4. Per fare una nuova BUILD (creare l'EXE aggiornato):
+   npm run electron:build:x64
+   
+   (Il risultato sarà in dist_electron/win-unpacked)
+
+BUON LAVORO!

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epal Manager - Loading...</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('splash-background.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            /* Align to bottom */
+            align-items: center;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .loading-container {
+            width: 80%;
+            max-width: 600px;
+            margin-bottom: 80px;
+            /* Space from bottom */
+            text-align: center;
+        }
+
+        .loading-text {
+            color: white;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.8;
+            font-weight: 600;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            backdrop-filter: blur(4px);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.7);
+            border-radius: 4px;
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="loading-container">
+        <!-- Professional Title -->
+        <h1
+            style="color: white; font-size: 3rem; margin-bottom: 0.5rem; text-shadow: 0 4px 6px rgba(0,0,0,0.3); font-weight: 800; letter-spacing: -1px; font-family: 'Segoe UI', sans-serif;">
+            EPAL MANAGER</h1>
+        <p
+            style="color: #94a3b8; margin-bottom: 2rem; font-size: 1.1rem; letter-spacing: 1px; text-transform: uppercase; font-weight: 500;">
+            Professional Logistics Suite</p>
+
+        <div class="loading-text" id="status-text">Inizializzazione...</div>
+        <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progress"></div>
+        </div>
+    </div>
+
+    <script>
+        const progressBar = document.getElementById('progress');
+        const statusText = document.getElementById('status-text');
+
+        let width = 0;
+        const targetWidth = 100; // Go all the way to 100%
+        const duration = 15000; // 15 seconds load time
+        const interval = 50; // Update every 50ms
+        const step = targetWidth / (duration / interval);
+
+        const steps = [
+            { pct: 5, text: "Caricamento moduli di sistema..." },
+            { pct: 15, text: "Verifica integrità archivio..." },
+            { pct: 30, text: "Connessione al database locale..." },
+            { pct: 50, text: "Ottimizzazione risorse grafiche..." },
+            { pct: 70, text: "Preparazione dashboard operatore..." },
+            { pct: 90, text: "Avvio applicazione..." }
+        ];
+
+        const timer = setInterval(() => {
+            if (width >= targetWidth) {
+                clearInterval(timer);
+            } else {
+                width += step;
+                progressBar.style.width = width + '%';
+
+                // Update text based on progress
+                const currentStep = steps.find(s => width > s.pct && width < s.pct + 15);
+                if (currentStep) {
+                    statusText.innerText = currentStep.text;
+                }
+            }
+        }, interval);
+    </script>
+</body>
+
+</html>

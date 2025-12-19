@@ -1,0 +1,48 @@
+{
+  "name": "epal-manager-pro",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "author": "Nicolini Loris <r3bus77@gmail.com>",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"wait-on tcp:3000 && electron .\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:build": "vite build && electron-builder",
+    "electron:build:x64": "vite build && electron-builder --x64"
+  },
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.epalmanager.pro",
+    "productName": "EpalManagerPro",
+    "copyright": "Copyright © 2025 Nicolini Loris",
+    "win": {
+      "target": "dir",
+      "icon": "electron/icon.png"
+    },
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ]
+  },
+  "dependencies": {
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-router-dom": "^7.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.2.1",
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12",
+    "png-to-ico": "^3.0.1",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "wait-on": "^9.0.3"
+  }
+}

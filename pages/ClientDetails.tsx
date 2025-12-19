@@ -1,0 +1,457 @@
+import React, { useState, useMemo } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, Calendar, Trash2, Edit2, Plus, Filter, PackageCheck, Truck, ArrowRightLeft, RotateCcw, StickyNote, X, AlertTriangle } from 'lucide-react';
+import { Client, Movement } from '../types';
+
+interface ClientDetailsProps {
+  clients: Client[];
+  movements: Movement[];
+  onAddMovement: (m: Omit<Movement, 'id'>) => void;
+  onUpdateMovement: (id: string, m: Partial<Movement>) => void;
+  onDeleteMovement: (id: string) => void;
+}
+
+export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements, onAddMovement, onUpdateMovement, onDeleteMovement }) => {
+  const { id } = useParams<{ id: string }>();
+  const client = clients.find(c => c.id === id);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
+  
+  // State per il popup nota
+  const [noteToView, setNoteToView] = useState<string | null>(null);
+
+  // State per conferma cancellazione
+  const [movementToDelete, setMovementToDelete] = useState<Movement | null>(null);
+
+  // Form State
+  const [formData, setFormData] = useState({
+    palletsGood: 0,
+    palletsShipping: 0,
+    palletsExchange: 0,
+    palletsReturned: 0,
+    date: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+
+  const clientMovements = useMemo(() => {
+    return movements
+      .filter(m => m.clientId === id)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [movements, id]);
+
+  const stats = useMemo(() => {
+    let totShipping = 0;
+    let totExchange = 0;
+    let totGood = 0;
+    let totReturned = 0;
+    
+    clientMovements.forEach(m => {
+       totShipping += (m.palletsShipping || 0);
+       totExchange += (m.palletsExchange || 0);
+       totGood += (m.palletsGood || 0);
+       totReturned += (m.palletsReturned || 0);
+    });
+
+    // Logica Saldo Clienti (Allineata alla Dashboard): 
+    // POSITIVO = (Spedizioni + Misto + RESO)
+    // NEGATIVO = (Buono)
+    // Saldo = (Spedizioni + Misto + RESO) - Buono
+    const gave = totShipping + totExchange + totReturned;
+    const received = totGood; 
+    const balance = gave - received;
+
+    return { totShipping, totExchange, totGood, totReturned, balance };
+  }, [clientMovements]);
+
+  if (!client) {
+    return <div className="p-8 text-center">Cliente non trovato. <Link to="/clients" className="text-blue-600 hover:underline">Torna alla lista</Link></div>;
+  }
+
+  const handleOpenAdd = () => {
+    setEditingMovement(null);
+    setFormData({
+        palletsGood: 0,
+        palletsShipping: 0,
+        palletsExchange: 0,
+        palletsReturned: 0,
+        date: new Date().toISOString().split('T')[0],
+        notes: ''
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (m: Movement) => {
+    setEditingMovement(m);
+    setFormData({
+        palletsGood: m.palletsGood || 0,
+        palletsShipping: m.palletsShipping || 0,
+        palletsExchange: m.palletsExchange || 0,
+        palletsReturned: m.palletsReturned || 0,
+        date: m.date,
+        notes: m.notes
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingMovement) {
+      onUpdateMovement(editingMovement.id, { ...formData });
+    } else {
+      onAddMovement({
+        clientId: client.id,
+        ...formData
+      });
+    }
+    setIsModalOpen(false);
+  };
+
+  const confirmDelete = () => {
+    if (movementToDelete) {
+        onDeleteMovement(movementToDelete.id);
+        setMovementToDelete(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4 mb-6">
+        <Link to="/clients" className="p-2 hover:bg-slate-200 rounded-full text-slate-600 transition-colors">
+          <ArrowLeft className="w-6 h-6" />
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">{client.name}</h1>
+          <p className="text-slate-500 flex items-center gap-2">
+            {client.code && (
+              <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 text-sm border border-slate-200">
+                {client.code}
+              </span>
+            )}
+            <span>{client.vatNumber} • {client.address}</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Stats Mini-bar */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-white border border-slate-200 p-4 rounded-xl">
+          <p className="text-xs text-slate-500 uppercase font-bold flex items-center gap-1"><PackageCheck className="w-3 h-3"/> Buono</p>
+          <p className="text-xl font-bold text-slate-800">{stats.totGood}</p>
+        </div>
+        <div className="bg-white border border-slate-200 p-4 rounded-xl">
+          <p className="text-xs text-slate-500 uppercase font-bold flex items-center gap-1"><Truck className="w-3 h-3"/> Spedizioni</p>
+          <p className="text-xl font-bold text-slate-800">{stats.totShipping}</p>
+        </div>
+        <div className="bg-white border border-slate-200 p-4 rounded-xl">
+          <p className="text-xs text-slate-500 uppercase font-bold flex items-center gap-1"><ArrowRightLeft className="w-3 h-3"/> Misto</p>
+          <p className="text-xl font-bold text-slate-800">{stats.totExchange}</p>
+        </div>
+         <div className="bg-white border border-slate-200 p-4 rounded-xl" title="Influisce sul saldo">
+          <p className="text-xs text-slate-500 uppercase font-bold flex items-center gap-1"><RotateCcw className="w-3 h-3"/> Reso</p>
+          <p className="text-xl font-bold text-slate-800">{stats.totReturned}</p>
+        </div>
+        <div className={`border p-4 rounded-xl col-span-2 lg:col-span-1 flex items-center justify-between ${stats.balance >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+          <div>
+            <p className={`text-xs uppercase font-bold ${stats.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>Saldo Totale</p>
+            <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-emerald-800' : 'text-rose-800'}`}>
+                {stats.balance > 0 ? '+' : ''}{stats.balance}
+            </p>
+          </div>
+          <Filter className={`w-8 h-8 ${stats.balance >= 0 ? 'text-emerald-300' : 'text-rose-300'}`} />
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h3 className="font-semibold text-slate-800">Storico Movimenti</h3>
+          <button
+            onClick={handleOpenAdd}
+            className="flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 text-sm rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Nuovo Movimento
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-white border-b border-slate-100">
+                <th className="px-6 py-3 font-medium text-slate-500 text-sm w-32">Data</th>
+                <th className="px-6 py-3 font-medium text-slate-500 text-sm text-center">Buono</th>
+                <th className="px-6 py-3 font-medium text-slate-500 text-sm text-center">Spedizioni</th>
+                <th className="px-6 py-3 font-medium text-slate-500 text-sm text-center">Misto</th>
+                <th className="px-6 py-3 font-medium text-slate-500 text-sm text-center">Reso</th>
+                <th className="px-6 py-3 font-medium text-slate-500 text-sm">Note</th>
+                <th className="px-6 py-3 font-medium text-slate-500 text-sm text-right">Azioni</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {clientMovements.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                    Nessun movimento registrato per questo cliente.
+                  </td>
+                </tr>
+              ) : (
+                clientMovements.map(m => {
+                  // Calcoli per colorazione righe
+                  const sumOut = (m.palletsShipping || 0) + (m.palletsExchange || 0) + (m.palletsReturned || 0);
+                  const sumIn = (m.palletsGood || 0);
+                  const netBalance = sumOut - sumIn;
+
+                  // Verifica se mostrare pulsante popup (Reso > 0 AND Note presenti)
+                  const hasReturnWithNotes = (m.palletsReturned || 0) > 0 && m.notes;
+
+                  // Determinazione Classe Riga
+                  // NetBalance > 0: Positivo (Verde)
+                  // NetBalance < 0: Negativo (Rosso Scuro)
+                  // NetBalance = 0: Pari (Grigio)
+                  let rowClass = 'transition-colors ';
+                  
+                  if (netBalance === 0) {
+                      rowClass += 'bg-slate-100 hover:bg-slate-200'; // Grigio
+                  } else if (netBalance > 0) {
+                      rowClass += 'bg-emerald-100 hover:bg-emerald-200'; // Verde
+                  } else {
+                      rowClass += 'bg-red-100 hover:bg-red-200'; // Rosso Scuro
+                  }
+
+                  return (
+                    <tr key={m.id} className={rowClass}>
+                      <td className="px-6 py-3 text-slate-600">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-slate-400" />
+                          {new Date(m.date).toLocaleDateString('it-IT')}
+                        </div>
+                      </td>
+                      
+                      {/* Buono */}
+                      <td className="px-6 py-3 text-center font-medium text-slate-700">
+                        {m.palletsGood ? <span className="bg-slate-100 px-2 py-1 rounded">{m.palletsGood}</span> : '-'}
+                      </td>
+                      
+                      {/* Spedizioni */}
+                      <td className="px-6 py-3 text-center font-medium text-slate-700">
+                        {m.palletsShipping ? <span className="bg-slate-100 px-2 py-1 rounded">{m.palletsShipping}</span> : '-'}
+                      </td>
+
+                      {/* Misto */}
+                      <td className="px-6 py-3 text-center font-medium text-slate-700">
+                        {m.palletsExchange ? <span className="bg-slate-100 px-2 py-1 rounded">{m.palletsExchange}</span> : '-'}
+                      </td>
+
+                      {/* Reso */}
+                      <td className="px-6 py-3 text-center font-medium text-slate-700">
+                        {m.palletsReturned ? (
+                            <span className="bg-yellow-200 text-yellow-900 px-2 py-1 rounded font-bold shadow-sm border border-yellow-300">
+                                {m.palletsReturned}
+                            </span>
+                        ) : '-'}
+                      </td>
+
+                      <td className="px-6 py-3 text-slate-500 text-sm max-w-xs truncate">
+                        {hasReturnWithNotes ? (
+                           <button 
+                             onClick={() => setNoteToView(m.notes)}
+                             className="flex items-center gap-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors border border-rose-200 shadow-sm animate-pulse hover:animate-none"
+                           >
+                             <StickyNote className="w-3.5 h-3.5" />
+                             LEGGI NOTA
+                           </button>
+                        ) : (
+                             m.notes ? (
+                                <span className="bg-yellow-200 text-yellow-900 px-2 py-1 rounded font-medium shadow-sm border border-yellow-300 inline-block max-w-full truncate">
+                                    {m.notes}
+                                </span>
+                            ) : '-'
+                        )}
+                      </td>
+                      <td className="px-6 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => handleOpenEdit(m)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded">
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => setMovementToDelete(m)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+       {/* Movement Modal (Create/Edit) */}
+       {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+              <h3 className="font-semibold text-lg text-slate-800">
+                {editingMovement ? 'Modifica Movimento' : 'Nuovo Movimento'}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">&times;</button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+               
+              <div className="grid grid-cols-2 gap-4">
+                  {/* 1. Buono */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Buono</label>
+                    <input
+                    type="number"
+                    min="0"
+                    className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg font-semibold"
+                    value={formData.palletsGood}
+                    onChange={(e) => setFormData({ ...formData, palletsGood: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+
+                  {/* 2. Spedizioni */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Spedizioni</label>
+                    <input
+                    type="number"
+                    min="0"
+                    className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg font-semibold"
+                    value={formData.palletsShipping}
+                    onChange={(e) => setFormData({ ...formData, palletsShipping: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+
+                  {/* 3. Misto */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Misto / Scambio</label>
+                    <input
+                    type="number"
+                    min="0"
+                    className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg font-semibold"
+                    value={formData.palletsExchange}
+                    onChange={(e) => setFormData({ ...formData, palletsExchange: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                
+                  {/* 4. Reso */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Reso</label>
+                    <input
+                    type="number"
+                    min="0"
+                    className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg font-semibold"
+                    value={formData.palletsReturned}
+                    onChange={(e) => setFormData({ ...formData, palletsReturned: parseInt(e.target.value) || 0 })}
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Influisce sul saldo</p>
+                  </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Data Movimento</label>
+                <input
+                  required
+                  type="date"
+                  className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Note / Riferimento DDT</label>
+                <textarea
+                  rows={2}
+                  className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                />
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+                >
+                  Salva Movimento
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Note View Modal */}
+      {noteToView && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100">
+                <div className="px-6 py-4 bg-rose-50 border-b border-rose-100 flex justify-between items-center">
+                    <h3 className="font-bold text-lg text-rose-800 flex items-center gap-2">
+                        <StickyNote className="w-5 h-5" />
+                        Nota Reso
+                    </h3>
+                    <button onClick={() => setNoteToView(null)} className="text-rose-400 hover:text-rose-700 bg-white rounded-full p-1 transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="p-8">
+                    <p className="text-slate-800 text-lg leading-relaxed whitespace-pre-wrap font-medium">
+                        {noteToView}
+                    </p>
+                </div>
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                    <button 
+                        onClick={() => setNoteToView(null)}
+                        className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition-colors"
+                    >
+                        Chiudi
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Modal Conferma Eliminazione Movimento */}
+      {movementToDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100">
+                <div className="p-6 text-center">
+                    <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <AlertTriangle className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">Eliminare movimento?</h3>
+                    <p className="text-slate-500 mb-6">
+                        Stai per eliminare il movimento del <span className="font-semibold text-slate-800">{new Date(movementToDelete.date).toLocaleDateString('it-IT')}</span>.<br/>
+                        Questa azione non può essere annullata.
+                    </p>
+                    <div className="flex gap-3 justify-center">
+                        <button 
+                            onClick={() => setMovementToDelete(null)}
+                            className="px-5 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors"
+                        >
+                            Annulla
+                        </button>
+                        <button 
+                            onClick={confirmDelete}
+                            className="px-5 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-md hover:shadow-lg transition-all active:scale-95"
+                        >
+                            Elimina
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+    </div>
+  );
+};
