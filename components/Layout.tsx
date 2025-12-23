@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Database, PackageOpen, ClipboardPen, CalendarDays, Power } from 'lucide-react';
+import { LayoutDashboard, Users, Database, PackageOpen, ClipboardPen, CalendarDays, Power, ScrollText } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,7 +13,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, operatorName }) => {
   const navItems = [
     { label: 'Dashboard', path: '/', icon: LayoutDashboard },
     { label: 'Registra Movimenti', path: '/daily', icon: ClipboardPen },
-    { label: 'Clienti', path: '/clients', icon: Users },
+    { label: 'Movimenti Clienti', path: '/client-movements', icon: ScrollText }, // Punteggio alla stessa rotta per ora
+    { label: 'Anagrafica Clienti', path: '/clients', icon: Users },
     { label: 'Calendario', path: '/calendar', icon: CalendarDays },
     { label: 'Impostazioni & Backup', path: '/settings', icon: Database },
   ];
@@ -59,7 +60,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, operatorName }) => {
             <span className="font-medium">Esci</span>
           </button>
           <p className="text-xs text-slate-500 text-center">
-            &copy; {new Date().getFullYear()} Nicolini Loris
+            &copy; {new Date().getFullYear()} Nicolini Loris<br />
+            <span className="opacity-50">v1.5</span>
           </p>
         </div>
       </aside>

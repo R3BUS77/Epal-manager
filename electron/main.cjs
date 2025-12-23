@@ -1,9 +1,21 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const isDev = !app.isPackaged; // Simple check for development mode
 
 let win;
 let splash;
+
+// IPC Handler for Directory Selection
+ipcMain.handle('select-directory', async () => {
+  const result = await dialog.showOpenDialog(win, {
+    properties: ['openDirectory', 'createDirectory']
+  });
+  if (result.canceled) {
+    return null;
+  } else {
+    return result.filePaths[0];
+  }
+});
 
 function createWindow() {
   // Create Main Window (Hidden)
