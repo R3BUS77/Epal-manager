@@ -1,11 +1,11 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const isDev = !app.isPackaged; // Simple check for development mode
+const isDev = !app.isPackaged; // Controllo semplice per modalità sviluppo
 
 let win;
 let splash;
 
-// IPC Handler for Directory Selection
+// Handler IPC per Selezione Directory
 ipcMain.handle('select-directory', async () => {
   const result = await dialog.showOpenDialog(win, {
     properties: ['openDirectory', 'createDirectory']
@@ -18,31 +18,34 @@ ipcMain.handle('select-directory', async () => {
 });
 
 function createWindow() {
-  // Create Main Window (Hidden)
+  // Crea Finestra Principale (Nascosta inizialmente)
   win = new BrowserWindow({
     show: false,
-    fullscreen: true,
+    kiosk: true,
+    alwaysOnTop: true, // Forza la finestra in primo piano per coprire la barra delle applicazioni
     frame: false,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
     },
+    icon: path.join(__dirname, 'icon.png')
   });
 
-  // Create Splash Window
+  // Crea Finestra Splash
   splash = new BrowserWindow({
-    fullscreen: true, // Fullscreen Splash
+    fullscreen: true, // Splash a Schermo Intero
     frame: false,
     alwaysOnTop: true,
-    backgroundColor: '#0f172a', // Dark background for immediate feedback
+    backgroundColor: '#0f172a', // Sfondo scuro per feedback immediato
     webPreferences: {
       nodeIntegration: true
-    }
+    },
+    icon: path.join(__dirname, 'icon.png')
   });
 
   splash.loadFile(path.join(__dirname, 'splash.html'));
 
-  // No need to center if fullscreen
+  // Non serve centrare se è fullscreen
 
   if (isDev) {
     win.loadURL('http://localhost:3000');
@@ -50,26 +53,30 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  // Determine when to show main window
+  // Determina quando mostrare la finestra principale
   if (isDev) {
-    // In Dev, show immediately after load to allow debug
+    // In Dev, mostra subito dopo il caricamento per debug
     win.once('ready-to-show', () => {
       splash.destroy();
       win.show();
     });
   } else {
-    // In Prod, simulate minimum load time for effect + real load
-    // Wait 15 seconds as requested (matches CSS/JS animation)
+    // In Prod, simula tempo minimo di caricamento per effetto + caricamento reale
+    // Attendi 15 secondi come richiesto (corrisponde all'animazione CSS/JS)
     setTimeout(() => {
       if (splash && !splash.isDestroyed()) {
         splash.destroy();
       }
       if (win && !win.isDestroyed()) {
         win.show();
+        win.focus(); // Forza il focus per prevenire stato "in background"
       }
-    }, 15500); // 15.5s to ensure progress bar finishes
+    }, 15500); // 15.5s per assicurare che la barra di progresso finisca
   }
 }
+
+// Disabilita Accelerazione Hardware per correggere schermo bianco/freeze su alcuni PC Windows
+app.disableHardwareAcceleration();
 
 app.whenReady().then(() => {
   createWindow();

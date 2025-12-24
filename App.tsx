@@ -6,6 +6,7 @@ import { Clients } from './pages/Clients';
 import { ClientDetails } from './pages/ClientDetails';
 import { DailyMovements } from './pages/DailyMovements';
 import { Settings } from './pages/Settings';
+import { ClientSelection } from './pages/ClientSelection';
 import { CalendarPage } from './pages/CalendarPage';
 import { Client, Movement, AppData } from './types';
 import { getClientsAsync, getMovementsAsync, saveClientsAsync, saveMovementsAsync, getDbPath } from './services/storageService';
@@ -13,12 +14,12 @@ import { acquireLockAsync, releaseLockAsync, LockInfo } from './services/lockSer
 import { OperatorModal } from './components/OperatorModal';
 import { DatabaseSetupModal } from './components/DatabaseSetupModal';
 import { LockScreen } from './components/LockScreen';
-import { RefreshCw, Database } from 'lucide-react'; // Added icons for Error Screen
+import { RefreshCw, Database } from 'lucide-react'; // Icone aggiunte per schermata di errore
 
-// Simple ID generator
+// Generatore ID semplice
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-// ipcRenderer for directory selection
+// ipcRenderer per selezione directory
 const { ipcRenderer } = window.require('electron');
 
 function App() {
@@ -27,25 +28,27 @@ function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [operatorName, setOperatorName] = useState<string>('');
 
-  // Loading State for Async Ops
+  // Stato di caricamento per operazioni asincrone
   const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState(false); // New Error State
+  const [loadError, setLoadError] = useState(false); // Nuovo stato di errore
 
-  // New state for DB configuration
+  // Nuovo stato per configurazione DB
   const [isDbConfigured, setIsDbConfigured] = useState<boolean>(!!getDbPath());
+  const [isDbSkipped, setIsDbSkipped] = useState(false);
 
-  // Lock State
-  const [isLocked, setIsLocked] = useState(false); // Do we have the lock?
-  const [lockConflict, setLockConflict] = useState<LockInfo | null>(null); // Who has it if not us?
+  // Stato Lock
+  const [isLocked, setIsLocked] = useState(false); // Abbiamo il lock?
+  const [lockConflict, setLockConflict] = useState<LockInfo | null>(null); // Chi ce l'ha se non noi?
 
-  // Load initial data (Async)
+  // Caricamento dati iniziale (Asincrono)
   useEffect(() => {
     const loadData = async () => {
+      // Carica solo se DB configurato. Se saltato, rimani vuoto.
       if (isDbConfigured) {
         setIsLoading(true);
         setLoadError(false);
 
-        // Timeout Promise
+        // Promise Timeout
         const timeout = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Timeout')), 10000)
         );
@@ -61,16 +64,19 @@ function App() {
           setIsLoaded(true);
           setIsLoading(false);
         } catch (e) {
-          console.error("Data load failed or timed out", e);
+          console.error("Caricamento dati fallito o timeout", e);
           setLoadError(true);
           setIsLoading(false);
         }
+      } else {
+        // Se saltato/non configurato, controlla se saltato per fermare caricamento
+        if (isDbSkipped) setIsLoaded(true);
       }
     };
     loadData();
-  }, [isDbConfigured]);
+  }, [isDbConfigured, isDbSkipped]);
 
-  // Attempt to acquire lock when operator is set (Async)
+  // Tenta di acquisire lock quando operatore è impostato (Asincrono)
   useEffect(() => {
     const tryLock = async () => {
       if (isDbConfigured && operatorName && !isLocked) {
@@ -89,7 +95,7 @@ function App() {
     tryLock();
   }, [isDbConfigured, operatorName, isLocked]);
 
-  // Release lock on unmount/close
+  // Rilascia lock su chiusura
   useEffect(() => {
     const handleUnload = () => {
       if (isLocked) releaseLockAsync();
@@ -101,7 +107,7 @@ function App() {
     };
   }, [isLocked]);
 
-  // Save changes (Async - fire and forget, effectively, or we could show saving state)
+  // Salva modfiche (Asincrono - fire and forget, o potremmo mostrare stato salvataggio)
   useEffect(() => {
     if (isLoaded && isDbConfigured && isLocked) {
       saveClientsAsync(clients);
@@ -116,23 +122,28 @@ function App() {
 
   const handleDbConfigured = () => {
     setIsDbConfigured(true);
-    // Data load will trigger via existing useEffect
+    // Il caricamento dati partirà tramite useEffect esistente
+  };
+
+  const handleDbSkip = () => {
+    setIsDbSkipped(true);
+    // Permette di procedere senza DB. isDbConfigured rimane false.
   };
 
   const handleNewDbSelection = async () => {
     try {
       const path = await ipcRenderer.invoke('select-directory');
       if (path) {
-        // Set new path (this triggers init logic in storageService which creates files)
+        // Imposta nuovo percorso (questo attiva logica init in storageService che crea file)
         const { setDbPath } = await import('./services/storageService');
-        setDbPath(path);
+        await setDbPath(path);
 
-        // Reset state to trigger reload
+        // Resetta stato per attivare ricaricamento
         setLoadError(false);
-        // setIsDbConfigured(true) is already true but the effect depends on it. 
-        // We can force a reload by toggling or just let the setDbPath's side effect (reload) happen? 
-        // Actually setDbPath in storageService relies on App reloading or us re-firing.
-        // Let's just reload the page to be clean and safe ensuring fresh state
+        // setIsDbConfigured(true) è già true ma l'effetto dipende da esso.
+        // Possiamo forzare reload togglando o lasciando che side effect di setDbPath (reload) accada?
+        // In realtà setDbPath in storageService si basa su App reloading o noi che rifacciamo fire.
+        // Facciamo reload pagina per essere puliti e sicuri di stato fresco
         window.location.reload();
       }
     } catch (err) {
@@ -145,46 +156,52 @@ function App() {
     setLockConflict(null);
   }
 
-  // --- CRUD Handlers (Pass through to UI) ---
+  // --- Handlers CRUD (Passati alla UI) ---
   const addClient = (client: Omit<Client, 'id'>) => {
+    if (!isDbConfigured) return;
     setClients([...clients, { ...client, id: generateId() }]);
   };
 
   const updateClient = (id: string, updated: Partial<Client>) => {
+    if (!isDbConfigured) return;
     setClients(clients.map(c => c.id === id ? { ...c, ...updated } : c));
   };
 
   const deleteClient = (id: string) => {
+    if (!isDbConfigured) return;
     const pending = movements.filter(m => m.clientId === id).length;
     if (pending > 0) {
-      // Alert handled by UI generally, but here we just block if needed or force. 
-      // For now, let's just delete. The UI usually confirms.
+      // Alert gestito dalla UI generalmente, ma qui blocchiamo se necessario.
+      // Per ora, eliminiamo. La UI di solito conferma.
     }
     setClients(clients.filter(c => c.id !== id));
   };
 
   const addMovement = (movement: Omit<Movement, 'id'>) => {
+    if (!isDbConfigured) return;
     setMovements([...movements, { ...movement, id: generateId() }]);
   };
 
   const updateMovement = (id: string, updated: Partial<Movement>) => {
+    if (!isDbConfigured) return;
     setMovements(movements.map(m => m.id === id ? { ...m, ...updated } : m));
   };
 
   const deleteMovement = (id: string) => {
+    if (!isDbConfigured) return;
     setMovements(movements.filter(m => m.id !== id));
   };
 
-  const handleImport = (data: AppData) => {
-    setClients(data.clients);
-    setMovements(data.movements);
-    // It will auto-save via useEffect
+  const handleImport = (data: Partial<AppData>) => {
+    if (data.clients) setClients(data.clients);
+    if (data.movements) setMovements(data.movements);
+    // Auto-salvataggio via useEffect
   };
 
 
-  // Determine what to render
+  // Determina cosa renderizzare
 
-  // 0. Loading Overlay
+  // 0. Overlay Caricamento
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
@@ -195,7 +212,7 @@ function App() {
     );
   }
 
-  // 0.5. Load Error / Recovery Screen
+  // 0.5. Schermata Errore Caricamento / Recupero
   if (loadError) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-slate-50 p-4">
@@ -238,17 +255,17 @@ function App() {
     );
   }
 
-  // 1. DB Setup
-  if (!isDbConfigured) {
-    return <DatabaseSetupModal onConfigured={handleDbConfigured} />;
+  // 1. Setup DB (Modale) - Mostra se NON configurato E NON saltato
+  if (!isDbConfigured && !isDbSkipped) {
+    return <DatabaseSetupModal onConfigured={handleDbConfigured} onSkip={handleDbSkip} />;
   }
 
-  // 2. Operator Setup
+  // 2. Setup Operatore
   if (!operatorName) {
     return <OperatorModal onSubmit={setOperatorName} />;
   }
 
-  // 3. Lock Check (Blocking)
+  // 3. Controllo Lock (Bloccante)
   if (lockConflict) {
     return <LockScreen
       currentLockInfo={lockConflict}
@@ -258,48 +275,68 @@ function App() {
   }
 
   return (
-    <HashRouter>
-      <Layout operatorName={operatorName}>
-        <Routes>
-          <Route path="/" element={<Dashboard clients={clients} movements={movements} operatorName={operatorName} />} />
-          <Route path="/daily" element={
-            <DailyMovements
-              clients={clients}
-              onAddMovement={addMovement}
-            />
-          } />
-          <Route path="/clients" element={
-            <Clients
-              clients={clients}
-              movements={movements}
-              onAddClient={addClient}
-              onUpdateClient={updateClient}
-              onDeleteClient={deleteClient}
-            />
-          } />
-          <Route path="/client-movements" element={
-            <Clients
-              clients={clients}
-              movements={movements}
-              onAddClient={addClient}
-              onUpdateClient={updateClient}
-              onDeleteClient={deleteClient}
-            />
-          } />
-          <Route path="/clients/:id" element={
-            <ClientDetails
-              clients={clients}
-              movements={movements}
-              onAddMovement={addMovement}
-              onUpdateMovement={updateMovement}
-              onDeleteMovement={deleteMovement}
-            />
-          } />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/settings" element={<Settings onImport={handleImport} />} />
-        </Routes>
-      </Layout>
-    </HashRouter>
+    <div className="relative h-screen flex flex-col">
+      {/* Banner Avviso Globale per DB Saltato */}
+      {!isDbConfigured && isDbSkipped && (
+        <div className="bg-amber-100 border-b border-amber-200 px-4 py-2 flex items-center justify-between z-50 animate-slideIn">
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 bg-amber-200 rounded-lg text-amber-700">
+              <Database className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-800">Nessun Database Configurato</p>
+              <p className="text-xs text-amber-600">I dati non verranno salvati in modo permanente.</p>
+            </div>
+          </div>
+          <button
+            onClick={handleNewDbSelection}
+            className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+          >
+            Configura Ora
+          </button>
+        </div>
+      )}
+
+      <HashRouter>
+        <Layout operatorName={operatorName}>
+          <Routes>
+            <Route path="/" element={<Dashboard clients={clients} movements={movements} operatorName={operatorName} />} />
+            <Route path="/daily" element={
+              <DailyMovements
+                clients={clients}
+                onAddMovement={addMovement}
+              />
+            } />
+            <Route path="/clients" element={
+              <Clients
+                clients={clients}
+                movements={movements}
+                onAddClient={addClient}
+                onUpdateClient={updateClient}
+                onDeleteClient={deleteClient}
+              />
+            } />
+            <Route path="/client-movements" element={
+              <ClientSelection
+                clients={clients}
+                movements={movements}
+              />
+            } />
+            <Route path="/clients/:id" element={
+              <ClientDetails
+                clients={clients}
+                movements={movements}
+                onAddMovement={addMovement}
+                onUpdateMovement={updateMovement}
+                onDeleteMovement={deleteMovement}
+              />
+            } />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/settings" element={<Settings onImport={handleImport} />} />
+          </Routes>
+        </Layout>
+      </HashRouter>
+    </div>
   );
 }
 

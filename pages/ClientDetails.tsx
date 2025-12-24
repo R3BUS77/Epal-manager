@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, Trash2, Edit2, Plus, Filter, PackageCheck, Truck, ArrowRightLeft, RotateCcw, StickyNote, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Calendar, Trash2, Edit2, Plus, Filter, PackageCheck, Truck, ArrowRightLeft, RotateCcw, StickyNote, X, AlertTriangle, List, BarChart3 } from 'lucide-react';
 import { Client, Movement } from '../types';
 
 interface ClientDetailsProps {
@@ -23,6 +23,9 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
 
   // State per conferma cancellazione
   const [movementToDelete, setMovementToDelete] = useState<Movement | null>(null);
+
+  // View Mode: 'LIST' or 'MONTHLY'
+  const [viewMode, setViewMode] = useState<'LIST' | 'MONTHLY'>('LIST');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -109,6 +112,57 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
     const balance = gave - received;
 
     return { totShipping, totExchange, totGood, totReturned, balance };
+  }, [filteredMovements]);
+
+
+  // Calculate Monthly Stats
+  const monthlyStats = useMemo(() => {
+    const stats: Record<string, {
+      monthLabel: string;
+      rawDate: string; // for sorting
+      good: number;
+      shipping: number;
+      exchange: number;
+      returned: number;
+      balance: number;
+      count: number;
+    }> = {};
+
+    filteredMovements.forEach(m => {
+      const d = new Date(m.date);
+      const year = d.getFullYear();
+      const month = d.getMonth(); // 0-11
+      const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+      if (!stats[key]) {
+        const dateObj = new Date(year, month, 1);
+        const monthName = dateObj.toLocaleString('it-IT', { month: 'long', year: 'numeric' });
+        stats[key] = {
+          monthLabel: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+          rawDate: key,
+          good: 0,
+          shipping: 0,
+          exchange: 0,
+          returned: 0,
+          balance: 0,
+          count: 0
+        };
+      }
+
+      stats[key].good += (m.palletsGood || 0);
+      stats[key].shipping += (m.palletsShipping || 0);
+      stats[key].exchange += (m.palletsExchange || 0);
+      stats[key].returned += (m.palletsReturned || 0);
+      stats[key].count += 1;
+    });
+
+    // Calculate balance per month
+    return Object.values(stats).map(s => {
+      const gave = s.shipping + s.exchange + s.returned;
+      const received = s.good;
+      s.balance = gave - received;
+      return s;
+    }).sort((a, b) => b.rawDate.localeCompare(a.rawDate)); // Descending by date
   }, [filteredMovements]);
 
 
@@ -226,7 +280,28 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Header con Filtri e Azioni */}
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
-          <h3 className="font-semibold text-slate-800 whitespace-nowrap">Storico Movimenti</h3>
+          <div className='flex items-center gap-4'>
+            <h3 className="font-semibold text-slate-800 whitespace-nowrap">
+              {viewMode === 'LIST' ? 'Storico Movimenti' : 'Andamento Mensile'}
+            </h3>
+            <div className="flex bg-slate-200 p-1 rounded-lg">
+              <button
+                onClick={() => setViewMode('LIST')}
+                className={`p-1.5 rounded-md transition-all ${viewMode === 'LIST' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Vista Elenco"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('MONTHLY')}
+                className={`p-1.5 rounded-md transition-all ${viewMode === 'MONTHLY' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Vista Mensile"
+              >
+                <BarChart3 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
 
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
             {/* Filtro Date */}
@@ -253,126 +328,178 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
               />
             </div>
 
-            <button
-              onClick={handleOpenAdd}
-              className="flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 text-sm rounded-lg hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" />
-              Nuovo
-            </button>
+            {viewMode === 'LIST' && (
+              <button
+                onClick={handleOpenAdd}
+                className="flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 text-sm rounded-lg hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                Nuovo
+              </button>
+            )}
+
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-white border-b border-slate-100">
-                <th className="px-6 py-3 font-medium text-slate-500 text-sm w-32">Data</th>
-                <th className="px-6 py-3 font-medium text-slate-500 text-sm text-center">Buono</th>
-                <th className="px-6 py-3 font-medium text-slate-500 text-sm text-center">Spedizioni</th>
-                <th className="px-6 py-3 font-medium text-slate-500 text-sm text-center">Misto</th>
-                <th className="px-6 py-3 font-medium text-slate-500 text-sm text-center">Reso</th>
-                <th className="px-6 py-3 font-medium text-slate-500 text-sm">Note</th>
-                <th className="px-6 py-3 font-medium text-slate-500 text-sm text-right">Azioni</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredMovements.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
-                    Nessun movimento trovato nel periodo selezionato.
-                  </td>
+          {viewMode === 'LIST' ? (
+            // --- VISTA LISTA (ORIGINALE) ---
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-white border-b border-slate-100">
+                  <th className="px-6 py-3 font-medium text-slate-500 text-sm w-32">Data</th>
+                  <th className="px-6 py-3 font-medium text-slate-500 text-sm text-center">Buono</th>
+                  <th className="px-6 py-3 font-medium text-slate-500 text-sm text-center">Spedizioni</th>
+                  <th className="px-6 py-3 font-medium text-slate-500 text-sm text-center">Misto</th>
+                  <th className="px-6 py-3 font-medium text-slate-500 text-sm text-center">Reso</th>
+                  <th className="px-6 py-3 font-medium text-slate-500 text-sm">Note</th>
+                  <th className="px-6 py-3 font-medium text-slate-500 text-sm text-right">Azioni</th>
                 </tr>
-              ) : (
-                filteredMovements.map(m => {
-                  // Calcoli per colorazione righe
-                  const sumOut = (m.palletsShipping || 0) + (m.palletsExchange || 0) + (m.palletsReturned || 0);
-                  const sumIn = (m.palletsGood || 0);
-                  const netBalance = sumOut - sumIn;
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredMovements.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                      Nessun movimento trovato nel periodo selezionato.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredMovements.map(m => {
+                    // Calcoli per colorazione righe
+                    const sumOut = (m.palletsShipping || 0) + (m.palletsExchange || 0) + (m.palletsReturned || 0);
+                    const sumIn = (m.palletsGood || 0);
+                    const netBalance = sumOut - sumIn;
 
-                  // Verifica se mostrare pulsante popup (Reso > 0 AND Note presenti)
-                  const hasReturnWithNotes = (m.palletsReturned || 0) > 0 && m.notes;
+                    // Verifica se mostrare pulsante popup (Reso > 0 AND Note presenti)
+                    const hasReturnWithNotes = (m.palletsReturned || 0) > 0 && m.notes;
 
-                  // Determinazione Classe Riga
-                  // NetBalance > 0: Positivo (Verde)
-                  // NetBalance < 0: Negativo (Rosso Scuro)
-                  // NetBalance = 0: Pari (Grigio)
-                  let rowClass = 'transition-colors ';
+                    // Determinazione Classe Riga
+                    // NetBalance > 0: Positivo (Verde)
+                    // NetBalance < 0: Negativo (Rosso Scuro)
+                    // NetBalance = 0: Pari (Grigio)
+                    let rowClass = 'transition-colors ';
 
-                  if (netBalance === 0) {
-                    rowClass += 'bg-slate-100 hover:bg-slate-200'; // Grigio
-                  } else if (netBalance > 0) {
-                    rowClass += 'bg-emerald-100 hover:bg-emerald-200'; // Verde
-                  } else {
-                    rowClass += 'bg-red-100 hover:bg-red-200'; // Rosso Scuro
-                  }
+                    if (netBalance === 0) {
+                      rowClass += 'bg-slate-100 hover:bg-slate-200'; // Grigio
+                    } else if (netBalance > 0) {
+                      rowClass += 'bg-emerald-100 hover:bg-emerald-200'; // Verde
+                    } else {
+                      rowClass += 'bg-red-100 hover:bg-red-200'; // Rosso Scuro
+                    }
 
-                  return (
-                    <tr key={m.id} className={rowClass}>
-                      <td className="px-6 py-3 text-slate-600">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-slate-400" />
-                          {new Date(m.date).toLocaleDateString('it-IT')}
-                        </div>
-                      </td>
+                    return (
+                      <tr key={m.id} className={rowClass}>
+                        <td className="px-6 py-3 text-slate-600">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-slate-400" />
+                            {new Date(m.date).toLocaleDateString('it-IT')}
+                          </div>
+                        </td>
 
-                      {/* Buono */}
-                      <td className="px-6 py-3 text-center font-medium text-slate-700">
-                        {m.palletsGood ? <span className="bg-slate-100 px-2 py-1 rounded">{m.palletsGood}</span> : '-'}
-                      </td>
+                        {/* Buono */}
+                        <td className="px-6 py-3 text-center font-medium text-slate-700">
+                          {m.palletsGood ? <span className="bg-slate-100 px-2 py-1 rounded">{m.palletsGood}</span> : '-'}
+                        </td>
 
-                      {/* Spedizioni */}
-                      <td className="px-6 py-3 text-center font-medium text-slate-700">
-                        {m.palletsShipping ? <span className="bg-slate-100 px-2 py-1 rounded">{m.palletsShipping}</span> : '-'}
-                      </td>
+                        {/* Spedizioni */}
+                        <td className="px-6 py-3 text-center font-medium text-slate-700">
+                          {m.palletsShipping ? <span className="bg-slate-100 px-2 py-1 rounded">{m.palletsShipping}</span> : '-'}
+                        </td>
 
-                      {/* Misto */}
-                      <td className="px-6 py-3 text-center font-medium text-slate-700">
-                        {m.palletsExchange ? <span className="bg-slate-100 px-2 py-1 rounded">{m.palletsExchange}</span> : '-'}
-                      </td>
+                        {/* Misto */}
+                        <td className="px-6 py-3 text-center font-medium text-slate-700">
+                          {m.palletsExchange ? <span className="bg-slate-100 px-2 py-1 rounded">{m.palletsExchange}</span> : '-'}
+                        </td>
 
-                      {/* Reso */}
-                      <td className="px-6 py-3 text-center font-medium text-slate-700">
-                        {m.palletsReturned ? (
-                          <span className="bg-yellow-200 text-yellow-900 px-2 py-1 rounded font-bold shadow-sm border border-yellow-300">
-                            {m.palletsReturned}
-                          </span>
-                        ) : '-'}
-                      </td>
-
-                      <td className="px-6 py-3 text-slate-500 text-sm max-w-xs truncate">
-                        {hasReturnWithNotes ? (
-                          <button
-                            onClick={() => setNoteToView(m.notes)}
-                            className="flex items-center gap-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors border border-rose-200 shadow-sm animate-pulse hover:animate-none"
-                          >
-                            <StickyNote className="w-3.5 h-3.5" />
-                            LEGGI NOTA
-                          </button>
-                        ) : (
-                          m.notes ? (
-                            <span className="bg-yellow-200 text-yellow-900 px-2 py-1 rounded font-medium shadow-sm border border-yellow-300 inline-block max-w-full truncate">
-                              {m.notes}
+                        {/* Reso */}
+                        <td className="px-6 py-3 text-center font-medium text-slate-700">
+                          {m.palletsReturned ? (
+                            <span className="bg-yellow-200 text-yellow-900 px-2 py-1 rounded font-bold shadow-sm border border-yellow-300">
+                              {m.palletsReturned}
                             </span>
-                          ) : '-'
-                        )}
+                          ) : '-'}
+                        </td>
+
+                        <td className="px-6 py-3 text-slate-500 text-sm max-w-xs truncate">
+                          {hasReturnWithNotes ? (
+                            <button
+                              onClick={() => setNoteToView(m.notes)}
+                              className="flex items-center gap-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors border border-rose-200 shadow-sm animate-pulse hover:animate-none"
+                            >
+                              <StickyNote className="w-3.5 h-3.5" />
+                              LEGGI NOTA
+                            </button>
+                          ) : (
+                            m.notes ? (
+                              <span className="bg-yellow-200 text-yellow-900 px-2 py-1 rounded font-medium shadow-sm border border-yellow-300 inline-block max-w-full truncate">
+                                {m.notes}
+                              </span>
+                            ) : '-'
+                          )}
+                        </td>
+                        <td className="px-6 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => handleOpenEdit(m)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded">
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setMovementToDelete(m)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          ) : (
+            // --- VISTA MENSILE (NUOVA) ---
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-white border-b border-slate-100">
+                  <th className="px-6 py-4 font-bold text-slate-700 text-sm bg-slate-50 w-48">Mese di Riferimento</th>
+                  <th className="px-6 py-4 font-bold text-slate-500 text-sm text-center bg-slate-50">Tot. Buono</th>
+                  <th className="px-6 py-4 font-bold text-slate-500 text-sm text-center bg-slate-50">Tot. Spedizioni</th>
+                  <th className="px-6 py-4 font-bold text-slate-500 text-sm text-center bg-slate-50">Tot. Misto</th>
+                  <th className="px-6 py-4 font-bold text-slate-500 text-sm text-center bg-slate-50">Tot. Reso</th>
+                  <th className="px-6 py-4 font-bold text-slate-500 text-sm text-center bg-slate-50">Saldo Mese</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {monthlyStats.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                      Nessun movimento nel periodo selezionato.
+                    </td>
+                  </tr>
+                ) : (
+                  monthlyStats.map((stat) => (
+                    <tr key={stat.rawDate} className="hover:bg-blue-50/30 transition-colors">
+                      <td className="px-6 py-4 text-slate-800 font-semibold capitalize border-r border-slate-100 bg-slate-50/30">
+                        {stat.monthLabel}
+                        <p className='text-xs text-slate-400 font-normal mt-0.5'>{stat.count} movimenti</p>
                       </td>
-                      <td className="px-6 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => handleOpenEdit(m)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setMovementToDelete(m)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                      <td className="px-6 py-4 text-center text-slate-600">{stat.good > 0 ? stat.good : '-'}</td>
+                      <td className="px-6 py-4 text-center text-slate-600">{stat.shipping > 0 ? stat.shipping : '-'}</td>
+                      <td className="px-6 py-4 text-center text-slate-600">{stat.exchange > 0 ? stat.exchange : '-'}</td>
+                      <td className="px-6 py-4 text-center text-slate-600">{stat.returned > 0 ? stat.returned : '-'}</td>
+                      <td className="px-6 py-4 text-center align-middle">
+                        <span className={`inline-flex items-center justify-center min-w-[3rem] px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${stat.balance > 0
+                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                            : stat.balance < 0
+                              ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}>
+                          {stat.balance > 0 ? '+' : ''}{stat.balance}
+                        </span>
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 

@@ -11,10 +11,10 @@ export const getDbPath = (): string | null => {
 };
 
 // Helper to set DB path
-export const setDbPath = (newPath: string) => {
+export const setDbPath = async (newPath: string) => {
   localStorage.setItem(DB_PATH_KEY, newPath);
-  // Re-init immediately (async in background is fine here as it's just setup)
-  initializeDatabaseAsync();
+  // Re-init immediately and WAIT for it to finish before returning
+  await initializeDatabaseAsync();
 };
 
 // Helper: Async exists check
@@ -200,6 +200,12 @@ export const exportDataAsync = async () => {
 // Deprecated sync export
 export const exportData = () => {
   exportDataAsync();
+};
+
+export const exportDataToPath = async (targetPath: string) => {
+  const [clients, movements] = await Promise.all([getClientsAsync(), getMovementsAsync()]);
+  const data: AppData = { clients, movements };
+  await fs.promises.writeFile(targetPath, JSON.stringify(data, null, 2));
 };
 
 // Parse imported JSON

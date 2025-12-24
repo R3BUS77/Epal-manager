@@ -4,7 +4,7 @@ COME RIPRENDERE IL LAVORO SU EPAL MANAGER
 Il progetto si trova in questa cartella:
 C:\Users\r3bus\.gemini\antigravity\scratch\Epal-Manager
 
-Quando riaccendi il PC e vuoi fare modifiche con l'AI o da solo:
+Quando riaccendi il PC e vuoi fare modifiche:
 
 1. Apri il terminale (PowerShell o CMD).
 2. Entra nella cartella del progetto:
