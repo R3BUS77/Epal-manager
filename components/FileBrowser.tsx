@@ -3,8 +3,9 @@ import {
     Folder,
     File,
     HardDrive,
+    ArrowLeft,
+    ArrowRight,
     ArrowUp,
-    X,
     Search,
     Home,
     Monitor,
@@ -15,7 +16,12 @@ import {
     Download,
     Save,
     Check,
-    Disc
+    Disc,
+    ChevronRight,
+    LayoutGrid,
+    X,
+    Maximize2,
+    Minus
 } from 'lucide-react';
 import { getDrives, getDirectoryContents, getParentPath, getQuickAccess, FileEntry, pathExists } from '../services/fileSystem';
 
@@ -80,7 +86,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
             setCurrentPath(path);
             setSelectedFile(null);
         } catch (err) {
-            setError("Accesso negato o percorso non valido.");
+            setError("Impossibile accedere al percorso.");
         } finally {
             setLoading(false);
         }
@@ -131,79 +137,71 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
     }
 
     return (
-        <div className="fixed inset-0 z-[60] bg-[#09090b] flex items-center justify-center p-6 animate-fadeIn font-sans">
+        <div className="fixed inset-0 z-[100] bg-[#f8fafc] flex flex-col font-sans animate-fadeIn text-slate-800 h-full">
 
-            {/* Glossy Container - Adjusted height and corners */}
-            <div className="w-full max-w-5xl h-[85vh] bg-[#1e1e1e] rounded-3xl shadow-2xl flex flex-col border border-white/10 relative overflow-hidden ring-1 ring-white/10">
-
-                {/* Gloss Effect - Subtle */}
-                <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/50 to-transparent opacity-50"></div>
-
-                {/* Ambient Glows - Toned down for "Clean" look */}
-                <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-
-                {/* Title Bar - Rounded Top corners handled by container overflow */}
-                <div className="flex items-center justify-between px-6 py-4 bg-[#252526] border-b border-black/20 z-10 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-[#2d2d30] rounded-xl border border-white/5 shadow-inner">
-                            {mode === 'save' ? <Save className="w-5 h-5 text-blue-400" /> : <Folder className="w-5 h-5 text-amber-400" />}
-                        </div>
-                        <div>
-                            <h3 className="text-base font-bold text-gray-100 tracking-tight">
-                                {title || (mode === 'save' ? 'Salva con nome' : 'Esplora Risorse')}
-                            </h3>
-                        </div>
-                    </div>
-                    <button
-                        onClick={onCancel}
-                        className="group p-2 hover:bg-[#c42b1c] rounded-lg transition-colors"
-                        title="Chiudi"
-                    >
-                        <X className="w-5 h-5 text-gray-400 group-hover:text-white" />
-                    </button>
-                </div>
-
-                {/* Navigation Bar */}
-                <div className="px-6 py-3 bg-black/20 border-b border-white/5 flex items-center gap-3 z-10 shrink-0">
-                    <button onClick={goUp} className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-all active:scale-95">
-                        <ArrowUp className="w-5 h-5" />
-                    </button>
-
-                    {/* Path Bar */}
-                    <div className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 flex items-center gap-3 text-sm text-gray-300 shadow-inner group transition-colors hover:border-white/20">
-                        <HardDrive className="w-4 h-4 text-blue-400" />
-                        <span className="truncate font-mono tracking-tight">{currentPath}</span>
-                    </div>
-
-                    {/* Search */}
-                    <div className="w-64 bg-black/40 border border-white/10 rounded-xl px-4 py-2 flex items-center gap-3 text-sm text-gray-500 shadow-inner">
-                        <Search className="w-4 h-4" />
-                        <span>Cerca...</span>
+            {/* Windows-style Header: Title Bar + Navigation Bar */}
+            <div className="bg-white border-b border-slate-200 shadow-sm shrink-0 z-20">
+                {/* Title Bar (Visual only, simulates window title) */}
+                <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50">
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                        <LayoutGrid className="w-3.5 h-3.5" />
+                        {title || (mode === 'save' ? 'Salva con nome' : 'Sfoglia file')}
                     </div>
                 </div>
 
-                <div className="flex flex-1 overflow-hidden z-10">
-                    {/* Sidebar */}
-                    <div className="w-64 bg-black/10 border-r border-white/5 overflow-y-auto py-4 px-3 space-y-6 custom-scrollbar shrink-0">
+                {/* Navigation Tools Bar */}
+                <div className="flex items-center gap-4 px-4 py-3">
+                    {/* Nav Controls */}
+                    <div className="flex items-center gap-2">
+                        <button onClick={goUp} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-blue-600 disabled:opacity-30">
+                            <ArrowUp className="w-5 h-5" />
+                        </button>
+                    </div>
 
+                    {/* Address Bar */}
+                    <div className="flex-1 flex items-center bg-slate-100 border border-slate-200 rounded-md px-3 py-2 text-sm group focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 focus-within:bg-white transition-all">
+                        <Monitor className="w-4 h-4 text-slate-400 mr-2 group-focus-within:text-blue-500" />
+                        <div className="flex-1 flex items-center gap-1 text-slate-700">
+                            {currentPath.split('\\').map((part, index, arr) => (
+                                <React.Fragment key={index}>
+                                    <span className="hover:bg-slate-200 px-1 rounded cursor-pointer transition-colors">{part || 'Questo PC'}</span>
+                                    {index < arr.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Search Bar */}
+                    <div className="w-64 bg-slate-100 border border-slate-200 rounded-md px-3 py-2 flex items-center gap-2 text-sm focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
+                        <Search className="w-4 h-4 text-slate-400" />
+                        <input type="text" placeholder={`Cerca in ${currentPath.split('\\').pop() || 'PC'}`} className="bg-transparent border-none w-full focus:outline-none placeholder:text-slate-400 text-slate-700" />
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex-1 flex overflow-hidden">
+
+                {/* Left Sidebar - Navigation Pane */}
+                <div className="w-64 bg-white border-r border-slate-200 flex flex-col overflow-y-auto shrink-0 py-4">
+                    <div className="space-y-6 px-2">
                         {/* Quick Access */}
                         <div>
-                            <div className="px-3 mb-2 flex items-center gap-2 text-[11px] font-bold text-blue-400 uppercase tracking-widest opacity-80">
-                                <Home className="w-3 h-3" /> Accesso Rapido
+                            <div className="px-3 mb-2 flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider opacity-80">
+                                Accesso Rapido
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 {quickAccess.map(item => (
                                     <button
                                         key={item.path}
                                         onClick={() => navigateTo(item.path)}
-                                        className={`w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-3 text-sm transition-all duration-300 border border-transparent 
-                                ${currentPath === item.path
-                                                ? 'bg-blue-600/20 text-white border-blue-500/50 shadow-[0_0_15px_rgba(37,99,235,0.3)]'
-                                                : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 hover:border-white/10'
-                                            }`}
+                                        className={`w-full text-left px-3 py-2 rounded-md flex items-center gap-2.5 text-sm transition-all
+                                            ${currentPath === item.path
+                                                ? 'bg-blue-100/50 text-blue-700 font-medium'
+                                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                                     >
-                                        {getQuickAccessIcon(item.name)}
+                                        <span className={currentPath === item.path ? 'text-blue-600' : 'text-slate-400'}>
+                                            {getQuickAccessIcon(item.name)}
+                                        </span>
                                         {item.name}
                                     </button>
                                 ))}
@@ -212,137 +210,132 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
 
                         {/* Drives */}
                         <div>
-                            <div className="px-3 mb-2 flex items-center gap-2 text-[11px] font-bold text-indigo-400 uppercase tracking-widest opacity-80">
-                                <Disc className="w-3 h-3" /> Questo PC
+                            <div className="px-3 mb-2 flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider opacity-80">
+                                Questo PC
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 {drives.map(drive => (
                                     <button
                                         key={drive.path}
                                         onClick={() => navigateTo(drive.path)}
-                                        className={`w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-3 text-sm transition-all duration-300 border border-transparent 
-                                ${currentPath.startsWith(drive.path)
-                                                ? 'bg-indigo-600/20 text-white border-indigo-500/50 shadow-[0_0_15px_rgba(79,70,229,0.3)]'
-                                                : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 hover:border-white/10'
-                                            }`}
+                                        className={`w-full text-left px-3 py-2 rounded-md flex items-center gap-2.5 text-sm transition-all
+                                            ${currentPath.startsWith(drive.path)
+                                                ? 'bg-slate-100 text-slate-900 font-medium'
+                                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                                     >
-                                        <HardDrive className="w-4 h-4" />
+                                        <HardDrive className={`w-4 h-4 ${currentPath.startsWith(drive.path) ? 'text-blue-600' : 'text-slate-400'}`} />
                                         {drive.name}
                                     </button>
                                 ))}
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    {/* File View */}
-                    <div className="flex-1 bg-transparent p-2 overflow-y-auto relative custom-scrollbar">
+                {/* Main Content Area - File List */}
+                <div className="flex-1 flex flex-col bg-white relative overflow-hidden">
+
+                    {/* Column Headers */}
+                    <div className="grid grid-cols-12 px-4 py-2 border-b border-slate-200 bg-white text-xs font-semibold text-slate-500 sticky top-0 z-10 shrink-0">
+                        <div className="col-span-6 pl-2 border-r border-transparent hover:border-slate-300 cursor-pointer">Nome</div>
+                        <div className="col-span-4 pl-2 border-r border-transparent hover:border-slate-300 cursor-pointer">Ultima Modifica</div>
+                        <div className="col-span-2 pl-2 cursor-pointer">Tipo</div>
+                    </div>
+
+                    {/* File Entries */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-2 bg-white">
                         {loading && (
-                            <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center z-20">
-                                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(59,130,246,0.5)]"></div>
+                            <div className="absolute inset-0 bg-white/50 z-20 flex items-center justify-center cursor-wait">
+                                <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                             </div>
                         )}
 
-                        {/* Table Header */}
-                        <div className="grid grid-cols-12 px-5 py-3 text-xs text-gray-500 font-bold uppercase tracking-wider border-b border-white/5 mb-2 sticky top-0 bg-[#1e1e1e]/95 backdrop-blur z-10 w-full">
-                            <div className="col-span-6">Nome</div>
-                            <div className="col-span-4">Ultima modifica</div>
-                            <div className="col-span-2 text-right">Tipo</div>
-                        </div>
-
-                        {/* List View */}
-                        <div className="space-y-1 px-2 pb-4 w-full">
+                        <div className="space-y-0.5">
                             {entries.length === 0 && !loading && !error && (
-                                <div className="flex flex-col items-center justify-center py-20 text-gray-500 opacity-50">
-                                    <Folder className="w-16 h-16 mb-4 stroke-1" />
-                                    <p className="text-lg font-medium">Cartella vuota</p>
+                                <div className="py-20 text-center text-slate-400 text-sm">
+                                    Cartella vuota
                                 </div>
                             )}
 
-                            {entries.map(entry => {
-                                // Selection logic
+                            {entries.map((entry) => {
                                 const isSelected = selectedFile === entry.path || (mode === 'save' && saveFileName === entry.name);
-
                                 return (
                                     <div
                                         key={entry.name}
                                         onClick={() => handleEntryClick(entry)}
                                         onDoubleClick={() => entry.isDirectory && navigateTo(entry.path)}
-                                        className={`
-                                     grid grid-cols-12 px-4 py-3 items-center gap-2 cursor-pointer w-full
-                                     rounded-xl border border-transparent transition-all duration-200 group relative overflow-hidden
-                                     ${isSelected
-                                                ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.15)] scale-[1.01]'
-                                                : 'hover:bg-white/5 hover:border-white/10 hover:scale-[1.005]'
-                                            }
-                                 `}
+                                        className={`grid grid-cols-12 px-2 py-1.5 items-center cursor-default text-sm select-none border border-transparent rounded-sm
+                                            ${isSelected
+                                                ? 'bg-blue-100/50 border-blue-200/50'
+                                                : 'hover:bg-slate-50'}`}
                                     >
-                                        {/* Highlight Bar */}
-                                        {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 shadow-[0_0_10px_#3b82f6]"></div>}
-
-                                        <div className="col-span-6 flex items-center gap-3 overflow-hidden">
+                                        <div className="col-span-6 flex items-center gap-2 overflow-hidden">
                                             {entry.isDirectory ? (
-                                                <div className="relative shrink-0">
-                                                    <Folder className={`w-5 h-5 ${isSelected ? 'text-blue-400 fill-blue-400/20' : 'text-amber-400 fill-amber-400/20'}`} />
-                                                    {isSelected && <div className="absolute inset-0 bg-blue-400 blur-lg opacity-40"></div>}
-                                                </div>
+                                                <Folder className={`w-4 h-4 shrink-0 ${isSelected ? 'text-amber-500' : 'text-amber-400'}`} fill="currentColor" fillOpacity={0.2} />
                                             ) : (
-                                                <File className={`w-5 h-5 shrink-0 ${isSelected ? 'text-blue-300' : 'text-gray-400'}`} />
+                                                <File className="w-4 h-4 shrink-0 text-slate-400" />
                                             )}
-                                            <span className={`truncate font-medium ${isSelected ? 'text-white' : 'text-gray-300 group-hover:text-white'}`}>{entry.name}</span>
+                                            <span className={`truncate ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>
+                                                {entry.name}
+                                            </span>
                                         </div>
-                                        <div className="col-span-4 text-xs text-gray-500 truncate group-hover:text-gray-400 transition-colors">
-                                            {new Date().toLocaleDateString()}
+                                        <div className="col-span-4 text-slate-500 text-xs">
+                                            {new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </div>
-                                        <div className="col-span-2 text-right text-xs text-gray-600 font-medium group-hover:text-gray-500">
-                                            {entry.isDirectory ? 'Cartella' : 'File'}
+                                        <div className="col-span-2 text-slate-400 text-xs truncate">
+                                            {entry.isDirectory ? 'Cartella di file' : 'File'}
                                         </div>
                                     </div>
-                                );
+                                )
                             })}
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {/* Footer Area */}
-                <div className="px-6 py-4 bg-black/20 border-t border-white/5 flex items-center gap-4 justify-end z-10 backdrop-blur-md shrink-0">
-
-                    {mode === 'save' && (
-                        <div className="flex-1 flex items-center gap-3 max-w-xl bg-black/40 p-1.5 rounded-xl border border-white/10 focus-within:border-blue-500/50 focus-within:shadow-[0_0_15px_rgba(59,130,246,0.2)] transition-all">
-                            <span className="text-xs font-bold text-gray-500 px-2 uppercase tracking-wide">Nome:</span>
+            {/* Bottom Action Footer - Windows Style */}
+            <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-center justify-end gap-4 shrink-0 z-20">
+                {mode === 'save' && (
+                    <div className="flex-1 max-w-2xl flex items-center gap-3">
+                        <label className="text-sm text-slate-700 whitespace-nowrap">Nome file:</label>
+                        <div className="flex-1 flex items-center bg-white border border-slate-300 hover:border-blue-400 rounded-sm overflow-hidden focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500">
                             <input
                                 type="text"
                                 value={saveFileName}
                                 onChange={(e) => setSaveFileName(e.target.value)}
-                                className="flex-1 bg-transparent text-white text-sm px-2 py-1 focus:outline-none placeholder-gray-600"
-                                placeholder="Nome del file..."
+                                className="w-full px-3 py-1.5 text-sm text-slate-800 focus:outline-none"
                             />
-                            <div className="px-3 py-1 bg-white/5 rounded-lg text-xs text-gray-400 border border-white/5">
-                                JSON (*.json)
+                            <div className="px-3 py-1.5 bg-slate-100 text-slate-500 text-sm border-l border-slate-200">
+                                .json
                             </div>
                         </div>
-                    )}
-
-                    {mode !== 'save' && <div className="flex-1"></div>}
-
-                    <div className="flex gap-3">
-                        <button
-                            onClick={onCancel}
-                            className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-sm rounded-xl transition-all border border-white/5 hover:border-white/10 font-medium"
-                        >
-                            Annulla
-                        </button>
-                        <button
-                            onClick={handleConfirm}
-                            disabled={(mode === 'file' && !selectedFile) || (mode === 'save' && !saveFileName)}
-                            className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-900/40 hover:shadow-blue-600/30 hover:scale-105 active:scale-95 font-bold flex items-center gap-2"
-                        >
-                            <Check className="w-4 h-4" />
-                            {mode === 'save' ? 'Salva' : 'Apri'}
-                        </button>
                     </div>
-                </div>
+                )}
 
+                {mode !== 'save' && <div className="flex-1"></div>}
+
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center max-w-[200px] h-9 px-3 bg-white border border-slate-300 rounded-sm text-sm text-slate-600 mr-2 opacity-70 cursor-not-allowed">
+                        File JSON (*.json)
+                    </div>
+
+                    <button
+                        onClick={handleConfirm}
+                        disabled={(mode === 'file' && !selectedFile) || (mode === 'save' && !saveFileName)}
+                        className="h-9 px-8 bg-blue-600 hover:bg-blue-700 hover:shadow-sm text-white text-sm font-medium rounded-sm transition-all disabled:opacity-50 disabled:grayscale disabled:shadow-none min-w-[100px]"
+                    >
+                        {mode === 'save' ? 'Salva' : 'Seleziona cartella'}
+                    </button>
+
+                    <button
+                        onClick={onCancel}
+                        className="h-9 px-8 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-sm font-medium rounded-sm transition-all min-w-[100px]"
+                    >
+                        Annulla
+                    </button>
+                </div>
             </div>
+
         </div>
     );
 };

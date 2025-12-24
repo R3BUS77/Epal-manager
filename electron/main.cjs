@@ -33,19 +33,18 @@ function createWindow() {
 
   // Crea Finestra Splash
   splash = new BrowserWindow({
-    fullscreen: true, // Splash a Schermo Intero
+    fullscreen: true,
     frame: false,
     alwaysOnTop: true,
-    backgroundColor: '#0f172a', // Sfondo scuro per feedback immediato
+    backgroundColor: '#0f172a',
     webPreferences: {
-      nodeIntegration: true
+      nodeIntegration: true,
+      contextIsolation: false // Necessario per usare require in splash.html
     },
     icon: path.join(__dirname, 'icon.png')
   });
 
   splash.loadFile(path.join(__dirname, 'splash.html'));
-
-  // Non serve centrare se è fullscreen
 
   if (isDev) {
     win.loadURL('http://localhost:3000');
@@ -53,25 +52,37 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
+  // Variabile per gestire il timeout di sicurezza
+  let safetyTimeout;
+
+  // Funzione per chiudere splash e mostrare main
+  const closeSplash = () => {
+    if (safetyTimeout) clearTimeout(safetyTimeout);
+
+    if (splash && !splash.isDestroyed()) {
+      splash.destroy();
+    }
+    if (win && !win.isDestroyed()) {
+      win.show();
+      win.focus();
+    }
+  };
+
+  // Ascolta il segnale dalla splash screen quando ha finito l'animazione
+  ipcMain.once('splash-finished', () => {
+    closeSplash();
+  });
+
   // Determina quando mostrare la finestra principale
   if (isDev) {
-    // In Dev, mostra subito dopo il caricamento per debug
     win.once('ready-to-show', () => {
-      splash.destroy();
-      win.show();
+      closeSplash();
     });
   } else {
-    // In Prod, simula tempo minimo di caricamento per effetto + caricamento reale
-    // Attendi 15 secondi come richiesto (corrisponde all'animazione CSS/JS)
-    setTimeout(() => {
-      if (splash && !splash.isDestroyed()) {
-        splash.destroy();
-      }
-      if (win && !win.isDestroyed()) {
-        win.show();
-        win.focus(); // Forza il focus per prevenire stato "in background"
-      }
-    }, 15500); // 15.5s per assicurare che la barra di progresso finisca
+    // Timeout di sicurezza nel caso l'animazione, per qualche motivo, si bloccasse
+    safetyTimeout = setTimeout(() => {
+      closeSplash();
+    }, 18000); // 18s (abbastanza tempo per l'animazione da 15s + buffer)
   }
 }
 

@@ -79,6 +79,7 @@
     </div>
 
     <script>
+        const { ipcRenderer } = require('electron');
         const progressBar = document.getElementById('progress');
         const statusText = document.getElementById('status-text');
 
@@ -94,12 +95,20 @@
             { pct: 30, text: "Connessione al database locale..." },
             { pct: 50, text: "Ottimizzazione risorse grafiche..." },
             { pct: 70, text: "Preparazione dashboard operatore..." },
-            { pct: 90, text: "Avvio applicazione..." }
+            { pct: 90, text: "Avvio applicazione..." },
+            { pct: 99, text: "Pronto!" }
         ];
 
         const timer = setInterval(() => {
             if (width >= targetWidth) {
                 clearInterval(timer);
+                progressBar.style.width = '100%';
+                statusText.innerText = "Pronto!";
+
+                // Give a small moment to see the 100% bar
+                setTimeout(() => {
+                    ipcRenderer.send('splash-finished');
+                }, 500);
             } else {
                 width += step;
                 progressBar.style.width = width + '%';
