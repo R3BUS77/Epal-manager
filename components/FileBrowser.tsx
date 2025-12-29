@@ -393,13 +393,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                                             e.stopPropagation();
                                             handleEntryDoubleClick(entry)
                                         }}
-                                        onContextMenu={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            // Invoke context menu via IPC
-                                            const { ipcRenderer } = window.require('electron');
-                                            ipcRenderer.invoke('show-context-menu', entry.path);
-                                        }}
+
                                         className={`grid grid-cols-12 px-2 py-1.5 items-center cursor-default text-sm select-none border border-transparent rounded-sm
                                             ${isSelected
                                                 ? 'bg-blue-100/50 border-blue-200/50 text-slate-900'
