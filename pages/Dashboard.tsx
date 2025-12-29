@@ -1,5 +1,7 @@
+
 import React, { useMemo } from 'react';
-import { ArrowDownLeft, ArrowUpRight, TrendingUp, Users, ChevronDown, X } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Users, Package, Calendar, TrendingUp, ChevronDown } from 'lucide-react';
+import { BackupReminder } from '../components/BackupReminder';
 import { Client, Movement } from '../types';
 import { StatCard } from '../components/StatCard';
 import { useNavigate } from 'react-router-dom';
@@ -63,12 +65,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
   const handleClientSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const clientId = e.target.value;
     if (clientId) {
-      navigate(`/clients/${clientId}`);
+      navigate(`/ clients / ${clientId} `);
     }
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 animate-fadeIn pb-10">
+      {/* Backup Reminder Banner (Last Day of Month) */}
+      <BackupReminder />
+
       {/* Header Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <StatCard
@@ -134,11 +139,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
                 return (
                   <div
                     key={move.id}
-                    className={`px-8 py-5 flex items-center justify-between transition-all duration-200 group cursor-default ${bgClass} ${borderClass}`}
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    className={`px - 8 py - 5 flex items - center justify - between transition - all duration - 200 group cursor -default ${bgClass} ${borderClass} `}
+                    style={{ animationDelay: `${index * 50} ms` }}
                   >
                     <div className="flex items-center gap-5">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm text-white font-bold text-sm ${isShipping ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gradient-to-br from-emerald-400 to-emerald-600'}`}>
+                      <div className={`w - 10 h - 10 rounded - full flex items - center justify - center shadow - sm text - white font - bold text - sm ${isShipping ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gradient-to-br from-emerald-400 to-emerald-600'} `}>
                         {getClientName(move.clientId).charAt(0).toUpperCase()}
                       </div>
                       <div>
