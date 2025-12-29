@@ -23,7 +23,16 @@ import {
     Maximize2,
     Minus
 } from 'lucide-react';
-import { getDrives, getDirectoryContents, getParentPath, getQuickAccess, FileEntry, pathExists } from '../services/fileSystem';
+import {
+    getDrives,
+    getDirectoryContents,
+    getParentPath,
+    getQuickAccess,
+    FileEntry,
+    pathExists,
+    resolveShortcut,
+    isDirectoryPath
+} from '../services/fileSystem';
 
 interface FileBrowserProps {
     mode: 'directory' | 'file' | 'save';
@@ -84,9 +93,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
             const filtered = items.filter(item => {
                 if (item.isDirectory) return true;
                 if (mode === 'directory') return false;
-                if ((mode === 'file' || mode === 'save') && allowedExtensions) {
-                    return allowedExtensions.some(ext => item.name.toLowerCase().endsWith(ext.toLowerCase()));
-                }
+                // In file/save mode, we now show ALL files, filtering happens at selection time
                 return true;
             });
 
@@ -101,7 +108,17 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
         }
     };
 
+    const isSelectable = (entry: FileEntry) => {
+        if (entry.isDirectory) return true;
+        if (allowedExtensions && (mode === 'file' || mode === 'save')) {
+            return allowedExtensions.some(ext => entry.name.toLowerCase().endsWith(ext.toLowerCase()));
+        }
+        return true;
+    };
+
     const handleEntryClick = (entry: FileEntry) => {
+        if (!isSelectable(entry)) return;
+
         setSelectedEntry(entry.path);
         if (!entry.isDirectory && mode === 'save') {
             setSaveFileName(entry.name);
@@ -109,17 +126,39 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
     };
 
     const handleEntryDoubleClick = (entry: FileEntry) => {
+        if (!isSelectable(entry)) {
+            // Check if it is a shortcut (.lnk) even if not selectable by extension filter
+            // Wait, if it's not selectable, we usually don't want to do anything?
+            // User request: "fai in modo che solo i file .json possano essere selezionati... il resto viene gestito come fa eplora risorse"
+            // Windows Explorer: if you are filtering for .txt, can you double click a .lnk to a folder? Yes, you can navigate.
+            // So we should allow double click on .lnk IF it leads to a folder.
+        }
+
         if (entry.isDirectory) {
             navigateTo(entry.path);
-        } else {
-            // If it's a file, treat as confirmation
-            if (mode === 'file') {
-                onSelect(entry.path);
-            } else if (mode === 'save') {
-                setSaveFileName(entry.name);
-                // Optional: immediately save? mostly standard is just select for save, but usually double click on existing overwrites or selects. 
-                // Let's just select it firmly.
+            return;
+        }
+
+        // Shortcut logic
+        if (entry.name.toLowerCase().endsWith('.lnk')) {
+            const target = resolveShortcut(entry.path);
+            if (target && isDirectoryPath(target)) {
+                navigateTo(target);
+                return;
             }
+            // If target is file, and file mode, check if selectable?
+            // User said: "se fatto doppio click il collegamento funzioni ma solo se per cartelle o link a server il resto rimane tutto invariato"
+            // Implies: only follow directory/server shortcuts. File shortcuts -> do nothing (invariato).
+            return;
+        }
+
+        if (!isSelectable(entry)) return;
+
+        // If it's a file, treat as confirmation
+        if (mode === 'file') {
+            onSelect(entry.path);
+        } else if (mode === 'save') {
+            setSaveFileName(entry.name);
         }
     };
 
@@ -344,6 +383,9 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
 
                             {entries.map((entry) => {
                                 const isSelected = selectedEntry === entry.path;
+                                const selectable = isSelectable(entry);
+                                const isDimmed = !selectable;
+
                                 return (
                                     <div
                                         key={entry.name}
@@ -358,22 +400,24 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                                         className={`grid grid-cols-12 px-2 py-1.5 items-center cursor-default text-sm select-none border border-transparent rounded-sm
                                             ${isSelected
                                                 ? 'bg-blue-100/50 border-blue-200/50 text-slate-900'
-                                                : 'hover:bg-slate-50 text-slate-700'}`}
+                                                : isDimmed
+                                                    ? 'text-slate-400 cursor-not-allowed hover:bg-transparent'
+                                                    : 'hover:bg-slate-50 text-slate-700'}`}
                                     >
                                         <div className="col-span-6 flex items-center gap-2 overflow-hidden">
                                             {entry.isDirectory ? (
                                                 <Folder className={`w-4 h-4 shrink-0 ${isSelected ? 'text-amber-500' : 'text-amber-400'}`} fill="currentColor" fillOpacity={0.2} />
                                             ) : (
-                                                <File className="w-4 h-4 shrink-0 text-slate-400" />
+                                                <File className={`w-4 h-4 shrink-0 ${isDimmed ? 'text-slate-300' : 'text-slate-400'}`} />
                                             )}
                                             <span className="truncate">
                                                 {entry.name}
                                             </span>
                                         </div>
-                                        <div className="col-span-4 text-slate-500 text-xs">
+                                        <div className={`col-span-4 text-xs ${isDimmed ? 'text-slate-300' : 'text-slate-500'}`}>
                                             {new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </div>
-                                        <div className="col-span-2 text-slate-400 text-xs truncate">
+                                        <div className={`col-span-2 text-xs truncate ${isDimmed ? 'text-slate-300' : 'text-slate-400'}`}>
                                             {entry.isDirectory ? 'Cartella di file' : 'File'}
                                         </div>
                                     </div>

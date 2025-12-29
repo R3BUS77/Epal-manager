@@ -2,6 +2,7 @@ const fs = window.require('fs');
 const path = window.require('path');
 const { exec } = window.require('child_process');
 const os = window.require('os');
+const { shell } = window.require('electron');
 
 export interface FileEntry {
     name: string;
@@ -86,4 +87,30 @@ export const getParentPath = (currentPath: string): string => {
 
 export const pathExists = (p: string): boolean => {
     return fs.existsSync(p);
+}
+
+export const resolveShortcut = (p: string): string | null => {
+    try {
+        if (!p.toLowerCase().endsWith('.lnk')) return null;
+        const result = shell.readShortcutLink(p);
+        return result.target;
+    } catch (e) {
+        console.error("Error resolving shortcut:", e);
+        return null;
+    }
+}
+
+export const isDirectoryPath = (p: string): boolean => {
+    try {
+        // Check if it is a server path (UNC)
+        if (p.startsWith('\\\\')) return true;
+
+        // Check filesystem
+        if (fs.existsSync(p)) {
+            return fs.statSync(p).isDirectory();
+        }
+        return false;
+    } catch (e) {
+        return false;
+    }
 }
