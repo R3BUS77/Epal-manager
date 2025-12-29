@@ -50,8 +50,12 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [drives, setDrives] = useState<FileEntry[]>([]);
     const [quickAccess, setQuickAccess] = useState<FileEntry[]>([]);
-    const [selectedFile, setSelectedFile] = useState<string | null>(null);
+    const [selectedEntry, setSelectedEntry] = useState<string | null>(null); // Changed from selectedFile
     const [saveFileName, setSaveFileName] = useState<string>(defaultSaveName || '');
+
+    // Address bar state
+    const [isEditingPath, setIsEditingPath] = useState(false);
+    const [pathInput, setPathInput] = useState('');
 
     useEffect(() => {
         const init = async () => {
@@ -67,6 +71,10 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
         };
         init();
     }, []);
+
+    useEffect(() => {
+        setPathInput(currentPath);
+    }, [currentPath]);
 
     const navigateTo = async (path: string) => {
         setLoading(true);
@@ -84,7 +92,8 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
 
             setEntries(filtered);
             setCurrentPath(path);
-            setSelectedFile(null);
+            setSelectedEntry(null);
+            setIsEditingPath(false);
         } catch (err) {
             setError("Impossibile accedere al percorso.");
         } finally {
@@ -93,13 +102,23 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
     };
 
     const handleEntryClick = (entry: FileEntry) => {
+        setSelectedEntry(entry.path);
+        if (!entry.isDirectory && mode === 'save') {
+            setSaveFileName(entry.name);
+        }
+    };
+
+    const handleEntryDoubleClick = (entry: FileEntry) => {
         if (entry.isDirectory) {
             navigateTo(entry.path);
         } else {
+            // If it's a file, treat as confirmation
             if (mode === 'file') {
-                setSelectedFile(entry.path);
+                onSelect(entry.path);
             } else if (mode === 'save') {
                 setSaveFileName(entry.name);
+                // Optional: immediately save? mostly standard is just select for save, but usually double click on existing overwrites or selects. 
+                // Let's just select it firmly.
             }
         }
     };
@@ -113,15 +132,38 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
 
     const handleConfirm = () => {
         if (mode === 'directory') {
+            // If a directory is selected in the view, maybe we want to select THAT one?
+            // Standard Windows "Open Folder" dialog: if you single click a folder and click "Select Folder", it selects that folder.
+            // If you are just inside a folder and click "Select Folder", it selects the current folder.
+            // Let's check selectedEntry.
+            if (selectedEntry) {
+                // We need to know if selectedEntry is a directory. 
+                // We can find it in entries.
+                const entry = entries.find(e => e.path === selectedEntry);
+                if (entry && entry.isDirectory) {
+                    onSelect(entry.path);
+                    return;
+                }
+            }
             onSelect(currentPath);
         } else if (mode === 'file') {
-            if (selectedFile) onSelect(selectedFile);
+            if (selectedEntry) {
+                const entry = entries.find(e => e.path === selectedEntry);
+                if (entry && !entry.isDirectory) {
+                    onSelect(selectedEntry);
+                }
+            }
         } else if (mode === 'save') {
             if (!saveFileName) return;
             const fs = window.require('path');
             const fullPath = fs.join(currentPath, saveFileName);
             onSelect(fullPath);
         }
+    };
+
+    const handlePathSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        navigateTo(pathInput);
     };
 
     const getQuickAccessIcon = (name: string) => {
@@ -159,15 +201,56 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                     </div>
 
                     {/* Address Bar */}
-                    <div className="flex-1 flex items-center bg-slate-100 border border-slate-200 rounded-md px-3 py-2 text-sm group focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 focus-within:bg-white transition-all">
-                        <Monitor className="w-4 h-4 text-slate-400 mr-2 group-focus-within:text-blue-500" />
-                        <div className="flex-1 flex items-center gap-1 text-slate-700">
-                            {currentPath.split('\\').map((part, index, arr) => (
-                                <React.Fragment key={index}>
-                                    <span className="hover:bg-slate-200 px-1 rounded cursor-pointer transition-colors">{part || 'Questo PC'}</span>
-                                    {index < arr.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
-                                </React.Fragment>
-                            ))}
+                    <div
+                        className={`flex-1 flex items-center bg-slate-100 border border-slate-200 rounded-md px-3 py-2 text-sm group transition-all
+                            ${isEditingPath ? 'bg-white ring-2 ring-blue-500/20 border-blue-400' : 'hover:border-slate-300'}`}
+                        onClick={() => {
+                            if (!isEditingPath) {
+                                setIsEditingPath(true);
+                                // Optional: focus input handled by autoFocus
+                            }
+                        }}
+                    >
+                        <Monitor className={`w-4 h-4 mr-2 ${isEditingPath ? 'text-blue-500' : 'text-slate-400'}`} />
+
+                        <div className="flex-1 flex items-center min-h-[20px]">
+                            {isEditingPath ? (
+                                <form onSubmit={handlePathSubmit} className="w-full">
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        value={pathInput}
+                                        onChange={(e) => setPathInput(e.target.value)}
+                                        onBlur={() => {
+                                            setIsEditingPath(false);
+                                            setPathInput(currentPath); // Reset on cancel
+                                        }}
+                                        className="w-full bg-transparent border-none p-0 text-slate-700 focus:outline-none text-sm"
+                                    />
+                                </form>
+                            ) : (
+                                <div className="flex-1 flex items-center gap-1 text-slate-700">
+                                    {currentPath.split('\\').map((part, index, arr) => (
+                                        <React.Fragment key={index}>
+                                            <span
+                                                className="hover:bg-slate-200 px-1 rounded cursor-pointer transition-colors"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const path = arr.slice(0, index + 1).join('\\');
+                                                    navigateTo(path || '\\'); // Handle root if needed, though usually C:\ splits to ["C:", ""]
+                                                }}
+                                            >
+                                                {part || (index === 0 ? '' : 'Questa PC')} {/* Logic for empty parts needs care, usually "C:" is first part */}
+                                                {!part && index === 0 && arr.length > 1 ? '' : part}
+                                                {/* Adjusted default view to just show parts. Windows usually shows breadcrumbs.
+                                                    Simplification: Just show parts.
+                                                */}
+                                            </span>
+                                            {index < arr.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+                                        </React.Fragment>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -233,7 +316,9 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                 </div>
 
                 {/* Main Content Area - File List */}
-                <div className="flex-1 flex flex-col bg-white relative overflow-hidden">
+                <div className="flex-1 flex flex-col bg-white relative overflow-hidden"
+                    onClick={() => setSelectedEntry(null)} // Click on whitespace deselects
+                >
 
                     {/* Column Headers */}
                     <div className="grid grid-cols-12 px-4 py-2 border-b border-slate-200 bg-white text-xs font-semibold text-slate-500 sticky top-0 z-10 shrink-0">
@@ -250,7 +335,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                             </div>
                         )}
 
-                        <div className="space-y-0.5">
+                        <div className="space-y-0.5" onClick={(e) => e.stopPropagation()}>
                             {entries.length === 0 && !loading && !error && (
                                 <div className="py-20 text-center text-slate-400 text-sm">
                                     Cartella vuota
@@ -258,16 +343,22 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                             )}
 
                             {entries.map((entry) => {
-                                const isSelected = selectedFile === entry.path || (mode === 'save' && saveFileName === entry.name);
+                                const isSelected = selectedEntry === entry.path;
                                 return (
                                     <div
                                         key={entry.name}
-                                        onClick={() => handleEntryClick(entry)}
-                                        onDoubleClick={() => entry.isDirectory && navigateTo(entry.path)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEntryClick(entry)
+                                        }}
+                                        onDoubleClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEntryDoubleClick(entry)
+                                        }}
                                         className={`grid grid-cols-12 px-2 py-1.5 items-center cursor-default text-sm select-none border border-transparent rounded-sm
                                             ${isSelected
-                                                ? 'bg-blue-100/50 border-blue-200/50'
-                                                : 'hover:bg-slate-50'}`}
+                                                ? 'bg-blue-100/50 border-blue-200/50 text-slate-900'
+                                                : 'hover:bg-slate-50 text-slate-700'}`}
                                     >
                                         <div className="col-span-6 flex items-center gap-2 overflow-hidden">
                                             {entry.isDirectory ? (
@@ -275,7 +366,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                                             ) : (
                                                 <File className="w-4 h-4 shrink-0 text-slate-400" />
                                             )}
-                                            <span className={`truncate ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>
+                                            <span className="truncate">
                                                 {entry.name}
                                             </span>
                                         </div>
@@ -321,7 +412,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
 
                     <button
                         onClick={handleConfirm}
-                        disabled={(mode === 'file' && !selectedFile) || (mode === 'save' && !saveFileName)}
+                        disabled={(mode === 'file' && !selectedEntry) || (mode === 'save' && !saveFileName)}
                         className="h-9 px-8 bg-blue-600 hover:bg-blue-700 hover:shadow-sm text-white text-sm font-medium rounded-sm transition-all disabled:opacity-50 disabled:grayscale disabled:shadow-none min-w-[100px]"
                     >
                         {mode === 'save' ? 'Salva' : 'Seleziona cartella'}
