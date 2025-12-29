@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, MenuItem, shell } = require('electron');
 const path = require('path');
 const isDev = !app.isPackaged; // Controllo semplice per modalità sviluppo
 
@@ -15,6 +15,27 @@ ipcMain.handle('select-directory', async () => {
   } else {
     return result.filePaths[0];
   }
+});
+
+// Handler per Menu Contestuale
+ipcMain.handle('show-context-menu', (event, filePath) => {
+  const menu = new Menu();
+
+  menu.append(new MenuItem({
+    label: 'Apri',
+    click: () => {
+      shell.openPath(filePath);
+    }
+  }));
+
+  menu.append(new MenuItem({
+    label: 'Mostra in Esplora File',
+    click: () => {
+      shell.showItemInFolder(filePath);
+    }
+  }));
+
+  menu.popup({ window: BrowserWindow.fromWebContents(event.sender) });
 });
 
 function createWindow() {

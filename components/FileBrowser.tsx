@@ -92,8 +92,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
             const items = await getDirectoryContents(path);
             const filtered = items.filter(item => {
                 if (item.isDirectory) return true;
-                if (mode === 'directory') return false;
-                // In file/save mode, we now show ALL files, filtering happens at selection time
+                // Show all files in all modes, relying on isSelectable for interaction restrictions
                 return true;
             });
 
@@ -250,9 +249,9 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                             }
                         }}
                     >
-                        <Monitor className={`w-4 h-4 mr-2 ${isEditingPath ? 'text-blue-500' : 'text-slate-400'}`} />
+                        <Monitor className={`w-4 h-4 mr-2 shrink-0 ${isEditingPath ? 'text-blue-500' : 'text-slate-400'}`} />
 
-                        <div className="flex-1 flex items-center min-h-[20px]">
+                        <div className="flex-1 flex items-center min-h-[20px] overflow-hidden">
                             {isEditingPath ? (
                                 <form onSubmit={handlePathSubmit} className="w-full">
                                     <input
@@ -268,7 +267,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                                     />
                                 </form>
                             ) : (
-                                <div className="flex-1 flex items-center gap-1 text-slate-700">
+                                <div className="flex-1 flex items-center gap-1 text-slate-700 overflow-x-auto whitespace-nowrap scrollbar-hide">
                                     {currentPath.split('\\').map((part, index, arr) => (
                                         <React.Fragment key={index}>
                                             <span
@@ -281,11 +280,8 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                                             >
                                                 {part || (index === 0 ? '' : 'Questa PC')} {/* Logic for empty parts needs care, usually "C:" is first part */}
                                                 {!part && index === 0 && arr.length > 1 ? '' : part}
-                                                {/* Adjusted default view to just show parts. Windows usually shows breadcrumbs.
-                                                    Simplification: Just show parts.
-                                                */}
                                             </span>
-                                            {index < arr.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+                                            {index < arr.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
                                         </React.Fragment>
                                     ))}
                                 </div>
@@ -396,6 +392,13 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                                         onDoubleClick={(e) => {
                                             e.stopPropagation();
                                             handleEntryDoubleClick(entry)
+                                        }}
+                                        onContextMenu={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            // Invoke context menu via IPC
+                                            const { ipcRenderer } = window.require('electron');
+                                            ipcRenderer.invoke('show-context-menu', entry.path);
                                         }}
                                         className={`grid grid-cols-12 px-2 py-1.5 items-center cursor-default text-sm select-none border border-transparent rounded-sm
                                             ${isSelected
