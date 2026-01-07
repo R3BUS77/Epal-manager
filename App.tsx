@@ -26,7 +26,19 @@ function App() {
   const [clients, setClients] = useState<Client[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [operatorName, setOperatorName] = useState<string>('');
+  // Persistent User Session (SessionStorage dies on app close, persists on reload/db-switch)
+  const [operatorName, setOperatorName] = useState<string>(() => {
+    return sessionStorage.getItem('epal_operator_name') || '';
+  });
+
+  // Persist name changes
+  useEffect(() => {
+    if (operatorName) {
+      sessionStorage.setItem('epal_operator_name', operatorName);
+    } else {
+      sessionStorage.removeItem('epal_operator_name');
+    }
+  }, [operatorName]);
 
   // Stato di caricamento per operazioni asincrone
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +51,9 @@ function App() {
   // Stato Lock
   const [isLocked, setIsLocked] = useState(false); // Abbiamo il lock?
   const [lockConflict, setLockConflict] = useState<LockInfo | null>(null); // Chi ce l'ha se non noi?
+
+  // Versione Path DB per triggerare ricaricamento
+  const [dbPathVersion, setDbPathVersion] = useState(0);
 
   // Caricamento dati iniziale (Asincrono)
   useEffect(() => {
@@ -74,15 +89,16 @@ function App() {
       }
     };
     loadData();
-  }, [isDbConfigured, isDbSkipped]);
+  }, [isDbConfigured, isDbSkipped, dbPathVersion]); // Aggiunto dbPathVersion
 
   // Tenta di acquisire lock quando operatore è impostato (Asincrono)
   useEffect(() => {
+    // ... existing lock logic
     const tryLock = async () => {
       if (isDbConfigured && operatorName && !isLocked) {
-        setIsLoading(true);
+        // Only show loading if we are NOT already loaded to avoid stutter
+        // actually acquiring lock is fast usually
         const result = await acquireLockAsync(operatorName);
-        setIsLoading(false);
 
         if (result.success) {
           setIsLocked(true);
@@ -134,17 +150,27 @@ function App() {
     try {
       const path = await ipcRenderer.invoke('select-directory');
       if (path) {
-        // Imposta nuovo percorso (questo attiva logica init in storageService che crea file)
+        // 1. Release Lock on OLD path if we have it
+        if (isLocked) {
+          await releaseLockAsync();
+        }
+
+        // 2. Set NEW path
         const { setDbPath } = await import('./services/storageService');
         await setDbPath(path);
 
-        // Resetta stato per attivare ricaricamento
+        // 3. Reset Data State
         setLoadError(false);
-        // setIsDbConfigured(true) è già true ma l'effetto dipende da esso.
-        // Possiamo forzare reload togglando o lasciando che side effect di setDbPath (reload) accada?
-        // In realtà setDbPath in storageService si basa su App reloading o noi che rifacciamo fire.
-        // Facciamo reload pagina per essere puliti e sicuri di stato fresco
-        window.location.reload();
+        setClients([]);
+        setMovements([]);
+        setIsLoaded(false);
+
+        // 4. Reset Lock State (triggers re-acquisition on new path via useEffect)
+        setIsLocked(false);
+        setLockConflict(null);
+
+        // 5. Trigger Reload of Data
+        setDbPathVersion(v => v + 1);
       }
     } catch (err) {
       console.error(err);
@@ -198,13 +224,36 @@ function App() {
     // Auto-salvataggio via useEffect
   };
 
+  // Logout fluido
+  const handleLogout = async () => {
+    // Release lock
+    if (isLocked) {
+      await releaseLockAsync();
+      setIsLocked(false);
+    }
+    // Reset Operator Name -> This triggers OperatorModal instantly
+    setOperatorName('');
+  };
+
 
   // Determina cosa renderizzare
 
-  // 0. Overlay Caricamento
+  // 1. Setup DB (Modale) - Mostra se NON configurato E NON saltato
+  if (!isDbConfigured && !isDbSkipped) {
+    return <DatabaseSetupModal onConfigured={handleDbConfigured} onSkip={handleDbSkip} />;
+  }
+
+  // 2. Setup Operatore
+  if (!operatorName) {
+    // Nota: usando React, quando name viene settato 'App' re-renderizza e mostra Layout.
+    // Transizione fluida gestita da React/CSS animate-in del modal.
+    return <OperatorModal onSubmit={setOperatorName} />;
+  }
+
+  // 0. Overlay Caricamento (Moved after Setup)
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-50 animate-in fade-in duration-300">
         <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
         <h2 className="text-xl font-semibold text-slate-700">Caricamento in corso...</h2>
         <p className="text-slate-500">Accesso al database aziendale</p>
@@ -255,15 +304,6 @@ function App() {
     );
   }
 
-  // 1. Setup DB (Modale) - Mostra se NON configurato E NON saltato
-  if (!isDbConfigured && !isDbSkipped) {
-    return <DatabaseSetupModal onConfigured={handleDbConfigured} onSkip={handleDbSkip} />;
-  }
-
-  // 2. Setup Operatore
-  if (!operatorName) {
-    return <OperatorModal onSubmit={setOperatorName} />;
-  }
 
   // 3. Controllo Lock (Bloccante)
   if (lockConflict) {
@@ -298,7 +338,7 @@ function App() {
       )}
 
       <HashRouter>
-        <Layout operatorName={operatorName}>
+        <Layout operatorName={operatorName} onLogout={handleLogout}>
           <Routes>
             <Route path="/" element={<Dashboard clients={clients} movements={movements} operatorName={operatorName} />} />
             <Route path="/daily" element={

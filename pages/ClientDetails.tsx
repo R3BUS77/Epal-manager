@@ -223,15 +223,22 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
           <ArrowLeft className="w-6 h-6" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">{client.name}</h1>
-          <p className="text-slate-500 flex items-center gap-2">
+          <h1 className="text-2xl text-slate-800 flex items-center gap-3">
             {client.code && (
-              <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 text-sm border border-slate-200">
+              <span className="font-normal opacity-70">
                 {client.code}
               </span>
             )}
-            <span>{client.vatNumber} • {client.address}</span>
-          </p>
+            <span className="font-bold">{client.name}</span>
+          </h1>
+          <div className="text-slate-500 mt-1 space-y-0.5">
+            <p className="flex items-center gap-2 text-sm md:text-base">
+              {client.address}
+            </p>
+            <p className="text-sm">
+              <span className="font-medium">P.Iva</span> {client.vatNumber}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -486,10 +493,10 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
                       <td className="px-6 py-4 text-center text-slate-600">{stat.returned > 0 ? stat.returned : '-'}</td>
                       <td className="px-6 py-4 text-center align-middle">
                         <span className={`inline-flex items-center justify-center min-w-[3rem] px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${stat.balance > 0
-                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                            : stat.balance < 0
-                              ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                          : stat.balance < 0
+                            ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                            : 'bg-slate-100 text-slate-600 border border-slate-200'
                           }`}>
                           {stat.balance > 0 ? '+' : ''}{stat.balance}
                         </span>

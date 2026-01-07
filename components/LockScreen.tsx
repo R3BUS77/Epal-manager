@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, RefreshCw, AlertOctagon } from 'lucide-react';
-import { LockInfo, acquireLock, releaseLock } from '../services/lockService';
+import { LockInfo, acquireLock, releaseLock, forceAcquireLockAsync } from '../services/lockService';
 
 interface LockScreenProps {
     currentLockInfo: LockInfo | null; // Info about who holds the lock (passed from App when failure occurs)
@@ -26,16 +26,23 @@ export const LockScreen: React.FC<LockScreenProps> = ({ currentLockInfo, operato
         }, 500); // Small artificial delay for UX feel
     };
 
-    const handleForceUnlock = () => {
+    const handleForceUnlock = async () => {
         if (window.confirm("Sei SICURO di voler forzare lo sblocco?\n\nFallo SOLO se sei certo che l'altro utente non sta lavorando o se il suo PC è spento.\nC'è rischio di perdere dati se entrambi salvate contemporaneamente.")) {
-            // To force unlock, we basically ignore the check and standard acquire procedure handles over-writing STALE locks.
-            // But here we want to overwrite an ACTIVE (or seemingly active) lock.
-            // We can just call acquire lock? No, acquireLock respects valid heartbeats.
-            // We need to manually nuke the file or have a force flag.
-            // Let's implement a 'force' logic: Delete file then acquire.
-
-            releaseLock(); // Try to delete whatever is there (dangerous but requested)
-            handleRetry(); // Then try to acquire normally
+            setIsChecking(true);
+            try {
+                // Call robust force acquire logic
+                const result = await forceAcquireLockAsync(operatorName);
+                if (result.success) {
+                    onSuccess();
+                } else {
+                    alert("Impossibile forzare il blocco. Controllare i permessi di rete.");
+                    setLockHolder(result.info || null);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsChecking(false);
+            }
         }
     };
 

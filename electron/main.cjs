@@ -5,6 +5,8 @@ const isDev = !app.isPackaged; // Controllo semplice per modalità sviluppo
 let win;
 let splash;
 
+
+// Handler IPC per Selezione Directory
 // Handler IPC per Selezione Directory
 ipcMain.handle('select-directory', async () => {
   const result = await dialog.showOpenDialog(win, {
@@ -15,6 +17,11 @@ ipcMain.handle('select-directory', async () => {
   } else {
     return result.filePaths[0];
   }
+});
+
+// Handler IPC per chiusura applicazione
+ipcMain.on('app-close', () => {
+  app.quit();
 });
 
 function createWindow() {

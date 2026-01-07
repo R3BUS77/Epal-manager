@@ -73,6 +73,30 @@ export const acquireLockAsync = async (operator: string): Promise<{ success: boo
     }
 };
 
+// Force Acquire Lock (Emergency) - Bypasses all checks
+export const forceAcquireLockAsync = async (operator: string): Promise<{ success: boolean; info?: LockInfo }> => {
+    const lockFile = getLockFilePath();
+    if (!lockFile) return { success: false };
+
+    try {
+        const machine = os.hostname();
+        const now = Date.now();
+        const newLock: LockInfo = { operator, machine, lastHeartbeat: now };
+
+        console.warn("FORCE ACQUIRING LOCK by", operator);
+
+        // Ruthlessly overwrite the file
+        await fs.promises.writeFile(lockFile, JSON.stringify(newLock, null, 2));
+
+        currentLockInfo = newLock;
+        startHeartbeat();
+        return { success: true, info: newLock };
+    } catch (error) {
+        console.error("Failed to force acquire lock", error);
+        return { success: false };
+    }
+};
+
 // Sync version kept for compatibility (wraps async? No, sync calls cannot wrap async)
 // We will deprecate sync usage in App.tsx
 export const acquireLock = (operator: string): { success: boolean; info?: LockInfo } => {

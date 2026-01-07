@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import { ArrowUpRight, ArrowDownLeft, Users, Package, Calendar, TrendingUp, ChevronDown } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Users, Package, Calendar, TrendingUp, ChevronDown, AlertTriangle } from 'lucide-react';
 import { BackupReminder } from '../components/BackupReminder';
 import { Client, Movement } from '../types';
 import { StatCard } from '../components/StatCard';
@@ -55,17 +55,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
 
   const recentMovements = [...movements]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
+    .slice(0, 4); // Ridotto a 4 per evitare scroll
 
   const getClientName = (id: string) => clients.find(c => c.id === id)?.name || 'Cliente sconosciuto';
 
-  // Ordina clienti per il dropdown
-  const sortedClients = [...clients].sort((a, b) => a.name.localeCompare(b.name));
+  // Calcolo se ci sono debitori (Clienti con deficit > 0)
+  // Deficit Cliente = (Buono) - (Sped + Misto + Reso) > 0?
+  // Logica: Il cliente ha preso (Buono) più di quanto ha dato (Sped + Misto + Reso).
+  const hasDebtors = useMemo(() => {
+    const clientBalances: Record<string, number> = {};
+    movements.forEach(m => {
+      // Debito: Ciò che il cliente ha PRESO (Buono)
+      const debtGenerated = (m.palletsGood || 0);
+
+      // Credito: Ciò che il cliente ha DATO/Ritornato (Sped + Misto + Reso)
+      const creditGenerated = (m.palletsShipping || 0) + (m.palletsExchange || 0) + (m.palletsReturned || 0);
+
+      clientBalances[m.clientId] = (clientBalances[m.clientId] || 0) + (debtGenerated - creditGenerated);
+    });
+    // Mostra solo se il cliente è in debito a noi
+    return Object.values(clientBalances).some(balance => balance > 0);
+  }, [movements]);
+
 
   const handleClientSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const clientId = e.target.value;
     if (clientId) {
-      navigate(`/ clients / ${clientId} `);
+      navigate(`/clients/${clientId}`);
     }
   };
 
@@ -81,7 +97,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
           value={stats.positive}
           icon={ArrowUpRight}
           color="green"
-          description="Eccedenza: (Sped + Misto + Reso) - Buono"
+          description="Guadagno"
         />
         <StatCard
           title="Bancali in Negativo"
@@ -92,7 +108,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 gap-8">
         {/* Recent Activity */}
         <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 overflow-hidden flex flex-col h-full">
           <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-white">
@@ -102,6 +118,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
               </div>
               Ultimi Movimenti
             </h3>
+
+            {/* Pulsante Warning Debitori (Visibile solo se necessario) */}
+            {hasDebtors && (
+              <button
+                onClick={() => navigate('/client-movements')}
+                className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg border border-amber-200 transition-colors group h-10 shadow-sm"
+              >
+                <div className="p-1.5 bg-amber-200 text-amber-800 rounded-full group-hover:scale-110 transition-transform">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                </div>
+                <span className="font-bold text-sm">Clienti in debito</span>
+              </button>
+            )}
           </div>
           <div className="divide-y divide-slate-50 flex-1">
             {recentMovements.length === 0 ? (
@@ -136,26 +165,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
                   borderClass = 'border-l-4 border-red-400';
                 }
 
+                // Helper per rendering riga valore (Uniform Height)
+                const renderValueRow = (label: string, val: number, colorText: string = 'text-slate-900') => (
+                  <div className="flex justify-between items-center gap-2 text-slate-500 h-5">
+                    <span className="text-[11px] uppercase tracking-wide opacity-70">{label}:</span>
+                    <span className={`font-bold text-sm tabular-nums ${val > 0 ? colorText : 'text-slate-300'}`}>
+                      {val > 0 ? val : '-'}
+                    </span>
+                  </div>
+                );
+
                 return (
                   <div
                     key={move.id}
-                    className={`px - 8 py - 5 flex items - center justify - between transition - all duration - 200 group cursor -default ${bgClass} ${borderClass} `}
-                    style={{ animationDelay: `${index * 50} ms` }}
+                    className={`px-6 py-4 grid grid-cols-[auto_1fr_auto] items-center gap-4 transition-all duration-200 group cursor-default ${bgClass} ${borderClass}`}
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <div className="flex items-center gap-5">
-                      <div className={`w - 10 h - 10 rounded - full flex items - center justify - center shadow - sm text - white font - bold text - sm ${isShipping ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gradient-to-br from-emerald-400 to-emerald-600'} `}>
-                        {getClientName(move.clientId).charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-700 group-hover:text-slate-900 transition-colors">{getClientName(move.clientId)}</p>
-                        <p className="text-xs text-slate-400 font-medium mt-0.5">{new Date(move.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                      </div>
+                    {/* Avatar */}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm text-white font-bold text-sm shrink-0 ${isShipping ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gradient-to-br from-emerald-400 to-emerald-600'}`}>
+                      {getClientName(move.clientId).charAt(0).toUpperCase()}
                     </div>
-                    <div className="text-right text-xs font-medium space-y-1">
-                      {move.palletsShipping > 0 && <span className="block text-slate-600">Sped: <span className="text-slate-900 font-bold">{move.palletsShipping}</span> </span>}
-                      {move.palletsExchange > 0 && <span className="block text-slate-600">Misto: <span className="text-slate-900 font-bold">{move.palletsExchange}</span> </span>}
-                      {move.palletsGood > 0 && <span className="block text-slate-600">Buono: <span className="text-slate-900 font-bold">{move.palletsGood}</span> </span>}
-                      {move.palletsReturned > 0 && <span className="block text-slate-600">Reso: <span className="text-slate-900 font-bold">{move.palletsReturned}</span></span>}
+
+                    {/* Dati Cliente */}
+                    <div className="min-w-0 pr-4">
+                      <p className="font-bold text-slate-700 group-hover:text-slate-900 transition-colors truncate text-base">
+                        {getClientName(move.clientId)}
+                      </p>
+                      <p className="text-xs text-slate-400 font-medium mt-0.5 truncate flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(move.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+
+                    {/* Valori Tabulari (SEMPRE VISIBILI per altezza uniforme) */}
+                    <div className="text-right text-xs font-medium space-y-1 min-w-[100px]">
+                      {renderValueRow('Sped', move.palletsShipping)}
+                      {renderValueRow('Misto', move.palletsExchange)}
+                      {renderValueRow('Buono', move.palletsGood, 'text-emerald-700')}
+                      {renderValueRow('Reso', move.palletsReturned, 'text-rose-600')}
                     </div>
                   </div>
                 )
@@ -164,53 +211,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
           </div>
         </div>
 
-        {/* Client Selector (Bento Style) */}
-        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-xl shadow-slate-900/20 text-white p-8 flex flex-col justify-start relative overflow-hidden group">
-          {/* Background Pattern */}
-          <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-10 -translate-y-10">
-            <Users className="w-64 h-64" />
-          </div>
 
-          <div className="relative z-10 w-full">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md shadow-inner border border-white/10">
-                <Users className="w-8 h-8 text-blue-300" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold tracking-tight">Vai al Cliente</h3>
-                <p className="text-sm text-slate-400 font-medium">Accesso rapido allo storico</p>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="relative w-full group/input">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block ml-1">Seleziona Nominativo</label>
-                <select
-                  onChange={handleClientSelect}
-                  defaultValue=""
-                  className="w-full pl-5 pr-12 py-5 bg-white/5 backdrop-blur-sm text-white rounded-2xl border border-white/10 focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white/10 cursor-pointer transition-all shadow-inner font-medium text-lg appearance-none hover:bg-white/10"
-                >
-                  <option value="" disabled className="text-slate-900 bg-white">-- Cerca nella lista --</option>
-                  {sortedClients.map(c => (
-                    <option key={c.id} value={c.id} className="text-slate-900 bg-white py-2">
-                      {c.name} {c.code ? `(${c.code})` : ''}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-5 bottom-5 pointer-events-none text-slate-400 group-hover/input:text-white transition-colors">
-                  <ChevronDown className="w-6 h-6" />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
-                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
-                <p className="text-xs text-blue-200 font-medium">
-                  Selezionando un cliente verrai reindirizzato automaticamente alla sua scheda dettagliata.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 
