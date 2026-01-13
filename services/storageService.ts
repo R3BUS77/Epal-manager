@@ -1,4 +1,5 @@
 import { AppData, Client, Movement } from '../types';
+import JSZip from 'jszip';
 
 const fs = window.require('fs');
 const path = window.require('path');
@@ -27,6 +28,10 @@ const existsAsync = async (filePath: string): Promise<boolean> => {
   }
 };
 
+// HEX SIGNATURES
+const SIG_CLIENTS = '434C49454E5453';   // CLIENTS
+const SIG_MOVEMENTS = '4D4F56454D454E5453'; // MOVEMENTS
+
 // Initialize on load (Async)
 export const initializeDatabaseAsync = async (): Promise<boolean> => {
   const dbPath = getDbPath();
@@ -47,10 +52,12 @@ export const initializeDatabaseAsync = async (): Promise<boolean> => {
     }
 
     if (!(await existsAsync(clientsFile))) {
-      await fs.promises.writeFile(clientsFile, JSON.stringify([], null, 2));
+      // Init with Signed Format
+      await fs.promises.writeFile(clientsFile, JSON.stringify({ hexSignature: SIG_CLIENTS, data: [] }, null, 2));
     }
     if (!(await existsAsync(movementsFile))) {
-      await fs.promises.writeFile(movementsFile, JSON.stringify([], null, 2));
+      // Init with Signed Format
+      await fs.promises.writeFile(movementsFile, JSON.stringify({ hexSignature: SIG_MOVEMENTS, data: [] }, null, 2));
     }
     return true;
   } catch (error) {
@@ -82,8 +89,14 @@ export const getClientsAsync = async (): Promise<Client[]> => {
       return [];
     }
 
-    const data = await fs.promises.readFile(clientsFile, 'utf-8');
-    return JSON.parse(data);
+    const content = await fs.promises.readFile(clientsFile, 'utf-8');
+    const json = JSON.parse(content);
+
+    // Support both Signed Format and Legacy Array
+    if (Array.isArray(json)) return json;
+    if (json.data && Array.isArray(json.data)) return json.data;
+
+    return [];
   } catch (e) {
     console.error("Failed to load clients async", e);
     return [];
@@ -97,7 +110,10 @@ export const getClients = (): Client[] => {
   const clientsFile = path.join(dbPath, 'clients.json');
   try {
     if (fs.existsSync(clientsFile)) {
-      return JSON.parse(fs.readFileSync(clientsFile, 'utf-8'));
+      const content = fs.readFileSync(clientsFile, 'utf-8');
+      const json = JSON.parse(content);
+      if (Array.isArray(json)) return json;
+      if (json.data && Array.isArray(json.data)) return json.data;
     }
   } catch (e) { }
   return [];
@@ -110,8 +126,8 @@ export const saveClientsAsync = async (clients: Client[]) => {
 
   const clientsFile = path.join(dbPath, 'clients.json');
   try {
-    // Only write if directory exists (handled by init)
-    await fs.promises.writeFile(clientsFile, JSON.stringify(clients, null, 2));
+    const output = { hexSignature: SIG_CLIENTS, data: clients };
+    await fs.promises.writeFile(clientsFile, JSON.stringify(output, null, 2));
   } catch (e) {
     console.error("Failed to save clients async", e);
   }
@@ -119,14 +135,12 @@ export const saveClientsAsync = async (clients: Client[]) => {
 
 // Alias for sync save (should be deprecated)
 export const saveClients = (clients: Client[]) => {
-  saveClientsAsync(clients); // Fire and forget for now, or keep sync?
   // Use sync for safety if implicit return needed, but we want to unblock UI
-  // So actually, let's keep the sync version PURE sync if called, but we will switch calls to Async
   const dbPath = getDbPath();
   if (!dbPath) return;
   try {
-    // Only write if directory exists
-    fs.writeFileSync(path.join(dbPath, 'clients.json'), JSON.stringify(clients, null, 2));
+    const output = { hexSignature: SIG_CLIENTS, data: clients };
+    fs.writeFileSync(path.join(dbPath, 'clients.json'), JSON.stringify(output, null, 2));
   } catch (e) { console.error(e) }
 };
 
@@ -139,10 +153,13 @@ export const getMovementsAsync = async (): Promise<Movement[]> => {
     if (!(await existsAsync(movementsFile))) {
       return [];
     }
-    const data = await fs.promises.readFile(movementsFile, 'utf-8');
-    return JSON.parse(data);
+    const content = await fs.promises.readFile(movementsFile, 'utf-8');
+    const json = JSON.parse(content);
+    if (Array.isArray(json)) return json;
+    if (json.data && Array.isArray(json.data)) return json.data;
+    return [];
   } catch (e) {
-    console.error("Failed to load movements async", e);
+    console.error("Failed to save movements async", e);
     return [];
   }
 };
@@ -154,7 +171,10 @@ export const getMovements = (): Movement[] => {
   const f = path.join(dbPath, 'movements.json');
   try {
     if (fs.existsSync(f)) {
-      return JSON.parse(fs.readFileSync(f, 'utf-8'));
+      const content = fs.readFileSync(f, 'utf-8');
+      const json = JSON.parse(content);
+      if (Array.isArray(json)) return json;
+      if (json.data && Array.isArray(json.data)) return json.data;
     }
   } catch (e) { }
   return [];
@@ -166,8 +186,8 @@ export const saveMovementsAsync = async (movements: Movement[]) => {
 
   const movementsFile = path.join(dbPath, 'movements.json');
   try {
-    // Only write if directory exists
-    await fs.promises.writeFile(movementsFile, JSON.stringify(movements, null, 2));
+    const output = { hexSignature: SIG_MOVEMENTS, data: movements };
+    await fs.promises.writeFile(movementsFile, JSON.stringify(output, null, 2));
   } catch (e) {
     console.error("Failed to save movements async", e);
   }
@@ -177,8 +197,8 @@ export const saveMovements = (movements: Movement[]) => {
   const dbPath = getDbPath();
   if (!dbPath) return;
   try {
-    // Only write if directory exists
-    fs.writeFileSync(path.join(dbPath, 'movements.json'), JSON.stringify(movements, null, 2));
+    const output = { hexSignature: SIG_MOVEMENTS, data: movements };
+    fs.writeFileSync(path.join(dbPath, 'movements.json'), JSON.stringify(output, null, 2));
   } catch (e) { console.error(e) }
 };
 
@@ -204,8 +224,46 @@ export const exportData = () => {
 
 export const exportDataToPath = async (targetPath: string) => {
   const [clients, movements] = await Promise.all([getClientsAsync(), getMovementsAsync()]);
-  const data: AppData = { clients, movements };
+  const data: AppData & { fileType: string, version: string, hexSignature: string } = {
+    clients,
+    movements,
+    fileType: 'EPAL_BACKUP',
+    version: '4.0.0',
+    hexSignature: '4550414C5F46554C4C' // EPAL_FULL_BACKUP
+  };
   await fs.promises.writeFile(targetPath, JSON.stringify(data, null, 2));
+};
+
+export const exportZipToPath = async (targetPath: string) => {
+  const [clients, movements] = await Promise.all([getClientsAsync(), getMovementsAsync()]);
+
+  const zip = new JSZip();
+
+  // Create clients.json content
+  const clientsData = {
+    hexSignature: SIG_CLIENTS,
+    data: clients
+  };
+  zip.file("clients.json", JSON.stringify(clientsData, null, 2));
+
+  // Create movements.json content
+  const movementsData = {
+    hexSignature: SIG_MOVEMENTS,
+    data: movements
+  };
+  zip.file("movements.json", JSON.stringify(movementsData, null, 2));
+
+  // Generate zip file
+  // platform: nodejs
+  const content = await zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+    compressionOptions: {
+      level: 9
+    }
+  });
+
+  await fs.promises.writeFile(targetPath, content);
 };
 
 // Parse imported JSON

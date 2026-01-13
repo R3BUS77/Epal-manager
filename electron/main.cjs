@@ -4,6 +4,8 @@ const isDev = !app.isPackaged; // Controllo semplice per modalità sviluppo
 
 let win;
 let splash;
+let splashOut; // New window for shutdown
+let isQuitting = false; // Flag to track if we are truly quitting
 
 
 // Handler IPC per Selezione Directory
@@ -24,12 +26,31 @@ ipcMain.on('app-close', () => {
   app.quit();
 });
 
+// Handler IPC per forzare il focus della finestra (Fix per input non cliccabili)
+ipcMain.on('app-focus', () => {
+  // Se la splash screen è ancora attiva, IGNORA il focus per evitare di mostrarla prematuramente
+  if (splash && !splash.isDestroyed()) {
+    return;
+  }
+
+  if (win) {
+    if (win.isMinimized()) win.restore();
+
+    // "Nuclear" focus fix for Windows: force top, then release
+    win.setAlwaysOnTop(true);
+    win.show();
+    win.focus();
+    win.setAlwaysOnTop(false);
+  }
+});
+
 function createWindow() {
   // Crea Finestra Principale (Nascosta inizialmente)
   win = new BrowserWindow({
     show: false,
-    kiosk: true,
-    alwaysOnTop: true, // Forza la finestra in primo piano per coprire la barra delle applicazioni
+    kiosk: false, // Disabilitato per permettere Alt+Tab
+    fullscreen: true, // Aggiunto per mantenere il full screen
+    alwaysOnTop: false, // Disabilitato per permettere di coprire la finestra con altre app
     frame: false,
     webPreferences: {
       nodeIntegration: true,
@@ -38,11 +59,45 @@ function createWindow() {
     icon: path.join(__dirname, 'icon.png')
   });
 
+  // Intercept Close Event for Splash Out
+  win.on('close', (e) => {
+    // If we are already quitting, let it proceed
+    if (isQuitting) return;
+
+    // Prevent default close (which minimizes or destroys immediately)
+    e.preventDefault();
+
+    // 1. Create Splash Out Window
+    splashOut = new BrowserWindow({
+      fullscreen: true,
+      frame: false,
+      alwaysOnTop: true, // Force on top for goodbye
+      backgroundColor: '#0f172a',
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false
+      },
+      icon: path.join(__dirname, 'icon.png')
+    });
+
+    splashOut.loadFile(path.join(__dirname, 'splash-out.html'));
+
+    // 2. Hide Main Window immediately
+    win.hide();
+
+    // 3. Wait 5 seconds then quit for real
+    setTimeout(() => {
+      isQuitting = true;
+      if (splashOut && !splashOut.isDestroyed()) splashOut.close();
+      app.quit();
+    }, 5000);
+  });
+
   // Crea Finestra Splash
   splash = new BrowserWindow({
     fullscreen: true,
     frame: false,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     backgroundColor: '#0f172a',
     webPreferences: {
       nodeIntegration: true,

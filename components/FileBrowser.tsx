@@ -278,8 +278,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                                                     navigateTo(path || '\\'); // Handle root if needed, though usually C:\ splits to ["C:", ""]
                                                 }}
                                             >
-                                                {part || (index === 0 ? '' : 'Questa PC')} {/* Logic for empty parts needs care, usually "C:" is first part */}
-                                                {!part && index === 0 && arr.length > 1 ? '' : part}
+                                                {part}
                                             </span>
                                             {index < arr.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
                                         </React.Fragment>
@@ -438,7 +437,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                                 className="w-full px-3 py-1.5 text-sm text-slate-800 focus:outline-none"
                             />
                             <div className="px-3 py-1.5 bg-slate-100 text-slate-500 text-sm border-l border-slate-200">
-                                .json
+                                {allowedExtensions && allowedExtensions.length > 0 ? allowedExtensions[0] : ''}
                             </div>
                         </div>
                     </div>
@@ -448,7 +447,9 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
 
                 <div className="flex items-center gap-3">
                     <div className="flex items-center max-w-[200px] h-9 px-3 bg-white border border-slate-300 rounded-sm text-sm text-slate-600 mr-2 opacity-70 cursor-not-allowed">
-                        File JSON (*.json)
+                        {allowedExtensions && allowedExtensions.length > 0
+                            ? `File (${allowedExtensions.map(e => `*${e}`).join(', ')})`
+                            : 'Tutti i file (*.*)'}
                     </div>
 
                     <button

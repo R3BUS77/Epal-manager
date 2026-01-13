@@ -1,7 +1,7 @@
 {
   "name": "epal-manager-pro",
   "private": true,
-  "version": "3.1.0",
+  "version": "4.0.0",
   "type": "module",
   "author": "Nicolini Loris <r3bus77@gmail.com>",
   "scripts": {
@@ -14,7 +14,7 @@
   "main": "electron/main.cjs",
   "build": {
     "appId": "com.epalmanager.pro",
-    "productName": "EpalManagerPro",
+    "productName": "Epal Manager",
     "copyright": "Copyright © 2025 Nicolini Loris",
     "win": {
       "target": "dir",
@@ -29,6 +29,8 @@
     ]
   },
   "dependencies": {
+    "@types/jszip": "^3.4.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

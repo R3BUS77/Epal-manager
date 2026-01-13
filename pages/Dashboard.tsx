@@ -15,37 +15,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
   const navigate = useNavigate();
 
   const stats = useMemo(() => {
-    let totalShipping = 0; // Spedizioni
-    let totalExchange = 0; // Misto/Scambio
-    let totalGood = 0;     // Buono
-    let totalReturned = 0; // Reso
+    // Calcoliamo il saldo PER CLIENTE, non globale.
+    // In questo modo se un cliente è in positivo e uno in negativo, NON si annullano.
+    const clientBalances: Record<string, number> = {};
 
-    // Iteriamo su tutti i movimenti di tutti i clienti
     movements.forEach(m => {
-      totalShipping += (m.palletsShipping || 0);
-      totalExchange += (m.palletsExchange || 0);
-      totalGood += (m.palletsGood || 0);
-      totalReturned += (m.palletsReturned || 0);
+      // Uscite (Sped + Misto + RESO)
+      const outVal = (m.palletsShipping || 0) + (m.palletsExchange || 0) + (m.palletsReturned || 0);
+      // Entrate (Buono)
+      const inVal = (m.palletsGood || 0);
+
+      // Saldo netto parziale per questo movimento
+      // Positive = Abbiamo dato più di quanto ricevuto (Credito)
+      const net = outVal - inVal;
+
+      clientBalances[m.clientId] = (clientBalances[m.clientId] || 0) + net;
     });
 
-    // Calcolo Totali
-    // Uscite (Sped + Misto + RESO). Il reso conta come restituzione al cliente.
-    const totalOut = totalShipping + totalExchange + totalReturned;
-    const totalIn = totalGood;                    // Entrate (Solo Buono)
-
-    // 1) BANCALI IN POSITIVO
-    // Eccedenza: Abbiamo dato più di quanto ricevuto
     let positive = 0;
-    if (totalOut > totalIn) {
-      positive = totalOut - totalIn;
-    }
-
-    // 2) BANCALI IN NEGATIVO
-    // Deficit: Abbiamo ricevuto più di quanto dato (Il Reso riduce questo deficit)
     let negative = 0;
-    if (totalOut < totalIn) {
-      negative = totalIn - totalOut;
-    }
+
+    Object.values(clientBalances).forEach(balance => {
+      if (balance > 0) {
+        // Cliente "in positivo" (noi siamo in credito)
+        positive += balance;
+      } else if (balance < 0) {
+        // Cliente "in negativo" (noi siamo in debito)
+        negative += Math.abs(balance);
+      }
+    });
 
     return {
       positive,
@@ -55,33 +53,53 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
 
   const recentMovements = [...movements]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 4); // Ridotto a 4 per evitare scroll
+    .slice(0, 8); // Aumentato a 8 per nuova visualizzazione compatta
 
   const getClientName = (id: string) => clients.find(c => c.id === id)?.name || 'Cliente sconosciuto';
 
   // Calcolo se ci sono debitori (Clienti con deficit > 0)
   // Deficit Cliente = (Buono) - (Sped + Misto + Reso) > 0?
   // Logica: Il cliente ha preso (Buono) più di quanto ha dato (Sped + Misto + Reso).
+  // Calcolo se ci sono debitori (Clienti con deficit NEGATIVO: Hanno ricevuto più di quanto dato)
+  // Deficit Cliente = (SPED + MISTO + RESO) - (BUONO)
+  // Se il saldo è < 0, significa che abbiamo dato MENO di quanto ricevuto (Debito nostro??)
+  // ASPETTA: "Clienti in debito" significa che IL CLIENTE ha un debito verso di noi.
+  // Nel contesto Epal Manager:
+  // Saldo > 0 (Verde, Positivo) = Client owes us (Debito del cliente) ???
+  // Saldo < 0 (Rosso, Negativo) = We owe client (Credito del cliente) ???
+  //
+  // Controllo DebtorClients.tsx:
+  // getClientBalance = (gave - received).
+  // filter(client => getClientBalance < 0).
+  // Quindi "Debtor" = Balance < 0.
+  //
+  // In Dashboard.tsx stats logic:
+  // clientBalances[m.clientId] += (outVal - inVal). (Gave - Received).
+  // Quindi balance < 0 significa Gave < Received. Significa che il cliente ci ha dato più palette di quante ne ha prese.
+  // Quindi NOI siamo in debito verso il cliente.
+  // Però l'utente chiama la pagina "Clienti in debito". Probabilmente intende "Clienti che mandano in debito l'azienda" o "Clienti a cui dobbiamo palette".
+  // Comunque, la logica richiesta è "balance < 0".
+
   const hasDebtors = useMemo(() => {
+    // Usiamo la stessa logica di balance calcolata in stats, o ricalcoliamo.
+    // Ricalcoliamo per sicurezza.
     const clientBalances: Record<string, number> = {};
     movements.forEach(m => {
-      // Debito: Ciò che il cliente ha PRESO (Buono)
-      const debtGenerated = (m.palletsGood || 0);
-
-      // Credito: Ciò che il cliente ha DATO/Ritornato (Sped + Misto + Reso)
-      const creditGenerated = (m.palletsShipping || 0) + (m.palletsExchange || 0) + (m.palletsReturned || 0);
-
-      clientBalances[m.clientId] = (clientBalances[m.clientId] || 0) + (debtGenerated - creditGenerated);
+      const outVal = (m.palletsShipping || 0) + (m.palletsExchange || 0) + (m.palletsReturned || 0);
+      const inVal = (m.palletsGood || 0);
+      const net = outVal - inVal;
+      clientBalances[m.clientId] = (clientBalances[m.clientId] || 0) + net;
     });
-    // Mostra solo se il cliente è in debito a noi
-    return Object.values(clientBalances).some(balance => balance > 0);
+
+    // Check if ANY client has balance < 0
+    return Object.values(clientBalances).some(balance => balance < 0);
   }, [movements]);
 
 
   const handleClientSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const clientId = e.target.value;
     if (clientId) {
-      navigate(`/clients/${clientId}`);
+      navigate(`/clients/${clientId}`, { state: { from: '/' } });
     }
   };
 
@@ -103,7 +121,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
           title="Bancali in Negativo"
           value={stats.negative}
           icon={ArrowDownLeft}
-          color={stats.negative > 0 ? "red" : "blue"}
+          color="red"
           description={stats.negative > 0 ? "Deficit: Buono - (Sped + Misto + Reso)" : "Nessun passivo rilevato"}
         />
       </div>
@@ -122,7 +140,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
             {/* Pulsante Warning Debitori (Visibile solo se necessario) */}
             {hasDebtors && (
               <button
-                onClick={() => navigate('/client-movements')}
+                onClick={() => navigate('/debtors')}
                 className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg border border-amber-200 transition-colors group h-10 shadow-sm"
               >
                 <div className="p-1.5 bg-amber-200 text-amber-800 rounded-full group-hover:scale-110 transition-transform">
@@ -165,11 +183,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
                   borderClass = 'border-l-4 border-red-400';
                 }
 
-                // Helper per rendering riga valore (Uniform Height)
-                const renderValueRow = (label: string, val: number, colorText: string = 'text-slate-900') => (
-                  <div className="flex justify-between items-center gap-2 text-slate-500 h-5">
-                    <span className="text-[11px] uppercase tracking-wide opacity-70">{label}:</span>
-                    <span className={`font-bold text-sm tabular-nums ${val > 0 ? colorText : 'text-slate-300'}`}>
+                // Helper per rendering riga valore (Horizontal Layout)
+                const renderValue = (label: string, val: number, colorText: string = 'text-slate-900') => (
+                  <div className="flex flex-col items-center justify-center min-w-[3.5rem]">
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-0.5">{label}</span>
+                    <span className={`font-bold text-sm tabular-nums leading-none ${val > 0 ? colorText : 'text-slate-300'}`}>
                       {val > 0 ? val : '-'}
                     </span>
                   </div>
@@ -178,31 +196,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
                 return (
                   <div
                     key={move.id}
-                    className={`px-6 py-4 grid grid-cols-[auto_1fr_auto] items-center gap-4 transition-all duration-200 group cursor-default ${bgClass} ${borderClass}`}
+                    className={`px-4 py-3 grid grid-cols-[auto_1fr_auto] items-center gap-4 transition-all duration-200 group cursor-default ${bgClass} ${borderClass}`}
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
                     {/* Avatar */}
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm text-white font-bold text-sm shrink-0 ${isShipping ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gradient-to-br from-emerald-400 to-emerald-600'}`}>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shadow-sm text-white font-bold text-xs shrink-0 ${isShipping ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gradient-to-br from-emerald-400 to-emerald-600'}`}>
                       {getClientName(move.clientId).charAt(0).toUpperCase()}
                     </div>
 
                     {/* Dati Cliente */}
                     <div className="min-w-0 pr-4">
-                      <p className="font-bold text-slate-700 group-hover:text-slate-900 transition-colors truncate text-base">
+                      <p className="font-bold text-slate-700 group-hover:text-slate-900 transition-colors truncate text-sm">
                         {getClientName(move.clientId)}
                       </p>
-                      <p className="text-xs text-slate-400 font-medium mt-0.5 truncate flex items-center gap-1">
+                      <p className="text-[11px] text-slate-400 font-medium truncate flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        {new Date(move.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {new Date(move.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
                       </p>
                     </div>
 
-                    {/* Valori Tabulari (SEMPRE VISIBILI per altezza uniforme) */}
-                    <div className="text-right text-xs font-medium space-y-1 min-w-[100px]">
-                      {renderValueRow('Sped', move.palletsShipping)}
-                      {renderValueRow('Misto', move.palletsExchange)}
-                      {renderValueRow('Buono', move.palletsGood, 'text-emerald-700')}
-                      {renderValueRow('Reso', move.palletsReturned, 'text-rose-600')}
+                    {/* Valori Tabulari (ORIZZONTALE) */}
+                    <div className="flex items-center gap-2 sm:gap-4">
+                      {renderValue('Buono', move.palletsGood, 'text-emerald-700')}
+                      {renderValue('Sped', move.palletsShipping)}
+                      {renderValue('Misto', move.palletsExchange)}
+                      {renderValue('Reso', move.palletsReturned, 'text-rose-600')}
                     </div>
                   </div>
                 )

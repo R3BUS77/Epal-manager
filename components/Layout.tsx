@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, Database, PackageOpen, ClipboardPen, CalendarDays, Power, ScrollText, Search, Bell, Clock, User, CircleUser, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Database, Boxes, ClipboardPen, CalendarDays, Power, ScrollText, Search, Bell, Clock, User, CircleUser, LogOut, Settings } from 'lucide-react';
 
 // Helper per il genere
 const getGender = (name: string): 'M' | 'F' => {
@@ -54,6 +54,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, operatorName, onLogout
     return () => clearInterval(timer);
   }, []);
 
+  // Fix: Force focus on window change to prevent inputs from becoming inaccessible
+  useEffect(() => {
+    const handleFocus = () => {
+      window.focus();
+      // Optional: Click on body to reset internal focus state if needed, but window.focus is usually key for Electron
+      // document.body.click(); 
+    };
+
+    // Small timeout to ensure transition is done
+    const t = setTimeout(handleFocus, 100);
+    return () => clearTimeout(t);
+  }, [location.pathname]);
+
   const handleLogout = () => {
     if (onLogout) {
       onLogout();
@@ -75,12 +88,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, operatorName, onLogout
   };
 
   const navItems = [
-    { label: 'Panoramica', path: '/', icon: LayoutDashboard },
+    { label: 'Dashboard', path: '/', icon: LayoutDashboard },
     { label: 'Registra Movimenti', path: '/daily', icon: ClipboardPen },
     { label: 'Movimenti Clienti', path: '/client-movements', icon: ScrollText },
     { label: 'Anagrafica Clienti', path: '/clients', icon: Users },
     { label: 'Calendario', path: '/calendar', icon: CalendarDays },
-    { label: 'Impostazioni', path: '/settings', icon: Database },
+    { label: 'Impostazioni', path: '/settings', icon: Settings },
   ];
 
   return (
@@ -94,11 +107,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, operatorName, onLogout
         {/* Brand Area */}
         <div className="relative p-8 flex items-center gap-4 z-10">
           <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-900/50 text-white transform rotate-3">
-            <PackageOpen className="w-7 h-7" />
+            <Boxes className="w-7 h-7" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-white tracking-wide">Epal Manager</h1>
-            <p className="text-xs text-slate-400 font-medium tracking-widest uppercase">PRO Logistics v3.1</p>
+            <p className="text-xs text-slate-400 font-medium tracking-widest uppercase">Professional Logistics</p>
           </div>
         </div>
 
@@ -154,7 +167,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, operatorName, onLogout
           </button>
 
           <div className="mt-4 text-center">
-            <p className="text-[10px] text-slate-600 font-medium">v3.1.0 • Build 2025 • Nicolini Loris</p>
+            <p className="text-[10px] text-slate-600 font-medium">v4.0.0 • Build 2025 • Nicolini Loris</p>
           </div>
         </div>
       </aside>

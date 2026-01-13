@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Client, Movement } from '../types';
 import { Save, Calendar, CheckCircle, PackageCheck, Truck, ArrowRightLeft, RotateCcw, Search, AlertTriangle, X } from 'lucide-react';
 
@@ -37,6 +38,20 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
     const exchangeRef = useRef<HTMLInputElement>(null);
     const returnedRef = useRef<HTMLInputElement>(null);
     const saveButtonRef = useRef<HTMLButtonElement>(null);
+
+    // Handle Enter key for Alert Modal
+    useEffect(() => {
+        if (!alertModal) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                setAlertModal(null);
+                if (alertModal.title.includes('Cliente')) searchRef.current?.focus();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [alertModal]);
 
     // Reset dopo salvataggio
     const resetForm = (keepDate = true) => {
@@ -119,7 +134,13 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
 
         // 1. Check Vuoto
         if (valGood === 0 && valShipping === 0 && valExchange === 0 && valReturned === 0) {
-            alert("Inserire almeno un valore (Buono, Spedizioni, Misto o Reso).");
+            // REPLACED NATIVE ALERT
+            setAlertModal({
+                isOpen: true,
+                title: 'Nessun Valore Inserito',
+                message: 'Inserisci almeno un valore in Buono, Spedizioni, Misto o Reso per salvare.',
+                type: 'warning'
+            });
             return;
         }
 
@@ -158,14 +179,44 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
 
     // Gestione Tasti (Navigation)
     const handleKeyDown = (e: React.KeyboardEvent, fieldName: string) => {
+        // Gestione Shift+Tab per tornare indietro
+        if (e.shiftKey && e.key === 'Tab') {
+            e.preventDefault();
+            switch (fieldName) {
+                case 'good':
+                    searchRef.current?.focus();
+                    break;
+                case 'shipping':
+                    goodRef.current?.focus();
+                    break;
+                case 'exchange':
+                    shippingRef.current?.focus();
+                    break;
+                case 'returned':
+                    exchangeRef.current?.focus();
+                    break;
+            }
+            return;
+        }
+
+        // Gestione Enter o Tab (Avanti)
         if (e.key === 'Enter' || e.key === 'Tab') {
             e.preventDefault();
 
             // Logica specifica per campo
             switch (fieldName) {
                 case 'search':
-                    if (selectedClient) goodRef.current?.focus();
-                    else alert("Cliente non trovato!");
+                    if (selectedClient) {
+                        goodRef.current?.focus();
+                    } else {
+                        // REPLACED NATIVE ALERT
+                        setAlertModal({
+                            isOpen: true,
+                            title: 'Cliente non trovato',
+                            message: 'Nessun cliente corrisponde ai criteri di ricerca. Controlla il codice o il nome.',
+                            type: 'error'
+                        });
+                    }
                     break;
                 case 'good':
                     shippingRef.current?.focus();
@@ -198,40 +249,43 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
         }
     };
 
-
     return (
         <div className="max-w-3xl mx-auto">
 
-            {/* ERROR / INFO MODAL (PREMIUM STYLE) */}
-            {alertModal && (
-                <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full transform transition-all scale-100 border border-slate-100">
-                        <div className={`flex items-center gap-4 mb-4 ${alertModal.type === 'error' ? 'text-rose-600' : 'text-amber-500'}`}>
-                            {alertModal.type === 'error' ? <X className="w-10 h-10" /> : <AlertTriangle className="w-10 h-10" />}
-                            <h3 className="text-2xl font-bold text-slate-800">{alertModal.title}</h3>
+            {/* ERROR / INFO MODAL (PREMIUM STYLE - CENTERED LIKE SETTINGS) - PORTAL */}
+            {alertModal && createPortal(
+                <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-in zoom-in-95 duration-200 border border-slate-100">
+                        <div className="flex flex-col items-center text-center mb-6">
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${alertModal.type === 'error' ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'}`}>
+                                {alertModal.type === 'error' ? <X className="w-8 h-8" /> : <AlertTriangle className="w-8 h-8" />}
+                            </div>
+                            <h3 className="text-2xl font-bold text-slate-800 mb-2">{alertModal.title}</h3>
+                            <p className="text-slate-600 text-lg leading-relaxed">
+                                {alertModal.message}
+                            </p>
                         </div>
-                        <p className="text-slate-600 text-lg mb-8 leading-relaxed">
-                            {alertModal.message}
-                        </p>
-                        <div className="flex justify-end">
+
+                        <div className="flex justify-center w-full">
                             <button
                                 onClick={() => {
                                     setAlertModal(null);
                                     // Refocus search if check failed there
                                     if (alertModal.title.includes('Cliente')) searchRef.current?.focus();
                                 }}
-                                className="px-8 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl active:scale-95"
+                                className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl active:scale-95 flex items-center justify-center gap-2"
                             >
-                                OK, Capito
+                                OK
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
-            {/* DUPLICATE WARNING MODAL */}
-            {duplicateWarning && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            {/* DUPLICATE WARNING MODAL - PORTAL */}
+            {duplicateWarning && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full animate-in fade-in zoom-in duration-200">
                         <div className="flex items-center gap-3 text-amber-600 mb-4">
                             <AlertTriangle className="w-8 h-8" />
@@ -249,14 +303,15 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
                                 Annulla
                             </button>
                             <button
-                                onClick={handleSave} // Calls save again, logic will skip check because duplicateWarning is true (wait, need to handle state logic)
+                                onClick={handleSave} // Calls save again, logic will skip check because duplicateWarning is true
                                 className="px-4 py-2 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-700"
                             >
                                 Conferma Salvataggio
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Header Data */}

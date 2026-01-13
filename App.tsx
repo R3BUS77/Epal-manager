@@ -7,6 +7,7 @@ import { ClientDetails } from './pages/ClientDetails';
 import { DailyMovements } from './pages/DailyMovements';
 import { Settings } from './pages/Settings';
 import { ClientSelection } from './pages/ClientSelection';
+import { DebtorClients } from './pages/DebtorClients';
 import { CalendarPage } from './pages/CalendarPage';
 import { Client, Movement, AppData } from './types';
 import { getClientsAsync, getMovementsAsync, saveClientsAsync, saveMovementsAsync, getDbPath } from './services/storageService';
@@ -136,6 +137,21 @@ function App() {
     }
   }, [movements, isLoaded, isDbConfigured, isLocked]);
 
+  useEffect(() => {
+    if (isLoaded && isDbConfigured) {
+      // Force aggressive focus when app becomes ready (startup or reload)
+      // This fixes the issue where inputs are not clickable after DB load
+      try {
+        ipcRenderer.send('app-focus');
+        window.focus();
+        // Force a click or focus on body to wake up renderer event loop if stuck
+        document.body.focus();
+      } catch (e) {
+        console.error("Focus fix failed", e);
+      }
+    }
+  }, [isLoaded, isDbConfigured]);
+
   const handleDbConfigured = () => {
     setIsDbConfigured(true);
     // Il caricamento dati partirà tramite useEffect esistente
@@ -149,6 +165,9 @@ function App() {
   const handleNewDbSelection = async () => {
     try {
       const path = await ipcRenderer.invoke('select-directory');
+      // Force focus back to window after native dialog closes
+      window.focus();
+
       if (path) {
         // 1. Release Lock on OLD path if we have it
         if (isLocked) {
@@ -358,6 +377,12 @@ function App() {
             } />
             <Route path="/client-movements" element={
               <ClientSelection
+                clients={clients}
+                movements={movements}
+              />
+            } />
+            <Route path="/debtors" element={
+              <DebtorClients
                 clients={clients}
                 movements={movements}
               />

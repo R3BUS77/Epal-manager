@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, Trash2, Edit2, Plus, Filter, PackageCheck, Truck, ArrowRightLeft, RotateCcw, StickyNote, X, AlertTriangle, List, BarChart3 } from 'lucide-react';
+import { useParams, Link, useLocation } from 'react-router-dom';
+import { ArrowLeft, Calendar, Edit2, Plus, Filter, PackageCheck, Truck, ArrowRightLeft, RotateCcw, StickyNote, X, AlertTriangle, List, BarChart3, XCircle, Trash2 } from 'lucide-react';
 import { Client, Movement } from '../types';
 
 interface ClientDetailsProps {
@@ -13,6 +13,9 @@ interface ClientDetailsProps {
 
 export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements, onAddMovement, onUpdateMovement, onDeleteMovement }) => {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const backPath = (location.state as any)?.from || '/client-movements'; // Default per fallback
+
   const client = clients.find(c => c.id === id);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -219,7 +222,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4 mb-6">
-        <Link to="/clients" className="p-2 hover:bg-slate-200 rounded-full text-slate-600 transition-colors">
+        <Link to={backPath} className="p-2 hover:bg-slate-200 rounded-full text-slate-600 transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </Link>
         <div>
@@ -520,6 +523,18 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">&times;</button>
             </div>
+            <style>{`
+              /* Nasconde le freccine input number (Chrome, Safari, Edge, Opera) */
+              input::-webkit-outer-spin-button,
+              input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+              }
+              /* Firefox */
+              input[type=number] {
+                -moz-appearance: textfield;
+              }
+            `}</style>
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
 
               <div className="grid grid-cols-2 gap-4">
@@ -529,8 +544,10 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
                   <input
                     type="number"
                     min="0"
+                    autoFocus
                     className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg font-semibold"
                     value={formData.palletsGood}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => setFormData({ ...formData, palletsGood: parseInt(e.target.value) || 0 })}
                   />
                 </div>
@@ -543,6 +560,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
                     min="0"
                     className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg font-semibold"
                     value={formData.palletsShipping}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => setFormData({ ...formData, palletsShipping: parseInt(e.target.value) || 0 })}
                   />
                 </div>
@@ -555,6 +573,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
                     min="0"
                     className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg font-semibold"
                     value={formData.palletsExchange}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => setFormData({ ...formData, palletsExchange: parseInt(e.target.value) || 0 })}
                   />
                 </div>
@@ -567,6 +586,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
                     min="0"
                     className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg font-semibold"
                     value={formData.palletsReturned}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => setFormData({ ...formData, palletsReturned: parseInt(e.target.value) || 0 })}
                   />
                   <p className="text-xs text-slate-400 mt-1">Influisce sul saldo</p>
@@ -590,7 +610,19 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
                   rows={2}
                   className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   value={formData.notes}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Tab' && !e.shiftKey) {
+                      e.preventDefault();
+                      // Troviamo il prossimo bottone (Annulla) e facciamo focus
+                      const form = e.currentTarget.closest('form');
+                      const buttons = form?.querySelectorAll('button');
+                      if (buttons && buttons.length > 0) {
+                        (buttons[0] as HTMLElement).focus();
+                      }
+                    }
+                  }}
                 />
               </div>
 

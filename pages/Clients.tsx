@@ -206,22 +206,22 @@ export const Clients: React.FC<ClientsProps> = ({ clients, movements, onAddClien
           onClick={() => handleModeSwitch('CREATE')}
           className={`relative overflow-hidden flex-1 basis-0 flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-xl group hover:-translate-y-1
             ${viewMode === 'CREATE'
-              ? 'bg-gradient-to-br from-blue-500 to-blue-600 border-blue-500 text-white scale-105 shadow-blue-200'
-              : 'bg-white border-slate-100 text-slate-600 hover:border-blue-200'
+              ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 border-emerald-500 text-white scale-105 shadow-emerald-200'
+              : 'bg-white border-slate-100 text-slate-600 hover:border-emerald-200'
             }`}
         >
           {/* Background Decor */}
-          <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-bl-full -mr-10 -mt-10 transition-transform duration-500 ease-out group-hover:scale-110
+          <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-bl-full -mr-10 -mt-10 transition-transform duration-500 ease-out group-hover:scale-110
             ${viewMode === 'CREATE' ? 'opacity-20' : 'opacity-[0.03]'}`}
           />
 
           <div className={`relative z-10 p-4 rounded-full transition-all duration-300 transform group-hover:rotate-6 shadow-md
-            ${viewMode === 'CREATE' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600 group-hover:bg-blue-200'}`}>
+            ${viewMode === 'CREATE' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-600 group-hover:bg-emerald-200'}`}>
             <Plus className="w-8 h-8" />
           </div>
           <div className="relative z-10 text-center">
             <span className="block text-xl font-bold tracking-tight">Nuovo Cliente</span>
-            <span className={`block text-xs mt-1 font-medium ${viewMode === 'CREATE' ? 'text-blue-100' : 'text-slate-400'}`}>Aggiungi una nuova anagrafica</span>
+            <span className={`block text-xs mt-1 font-medium ${viewMode === 'CREATE' ? 'text-emerald-100' : 'text-slate-400'}`}>Aggiungi una nuova anagrafica</span>
           </div>
         </button>
 
@@ -230,22 +230,22 @@ export const Clients: React.FC<ClientsProps> = ({ clients, movements, onAddClien
           onClick={() => handleModeSwitch('EDIT_SEARCH')}
           className={`relative overflow-hidden flex-1 basis-0 flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-xl group hover:-translate-y-1
             ${(viewMode === 'EDIT_SEARCH' || viewMode === 'EDIT_FORM')
-              ? 'bg-gradient-to-br from-indigo-500 to-indigo-600 border-indigo-500 text-white scale-105 shadow-indigo-200'
-              : 'bg-white border-slate-100 text-slate-600 hover:border-indigo-200'
+              ? 'bg-gradient-to-br from-amber-400 to-amber-500 border-amber-400 text-white scale-105 shadow-amber-200'
+              : 'bg-white border-slate-100 text-slate-600 hover:border-amber-200'
             }`}
         >
           {/* Background Decor */}
-          <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-bl-full -mr-10 -mt-10 transition-transform duration-500 ease-out group-hover:scale-110
+          <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-400 to-orange-500 rounded-bl-full -mr-10 -mt-10 transition-transform duration-500 ease-out group-hover:scale-110
             ${(viewMode === 'EDIT_SEARCH' || viewMode === 'EDIT_FORM') ? 'opacity-20' : 'opacity-[0.03]'}`}
           />
 
           <div className={`relative z-10 p-4 rounded-full transition-all duration-300 transform group-hover:rotate-6 shadow-md
-            ${(viewMode === 'EDIT_SEARCH' || viewMode === 'EDIT_FORM') ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-600 group-hover:bg-indigo-200'}`}>
+            ${(viewMode === 'EDIT_SEARCH' || viewMode === 'EDIT_FORM') ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-600 group-hover:bg-amber-200'}`}>
             <Edit className="w-8 h-8" />
           </div>
           <div className="relative z-10 text-center">
             <span className="block text-xl font-bold tracking-tight">Modifica Cliente</span>
-            <span className={`block text-xs mt-1 font-medium ${(viewMode === 'EDIT_SEARCH' || viewMode === 'EDIT_FORM') ? 'text-indigo-100' : 'text-slate-400'}`}>Premi il pulsante per aggiornare i dati cliente</span>
+            <span className={`block text-xs mt-1 font-medium ${(viewMode === 'EDIT_SEARCH' || viewMode === 'EDIT_FORM') ? 'text-amber-100' : 'text-slate-400'}`}>Premi il pulsante per aggiornare i dati cliente</span>
           </div>
         </button>
 
@@ -253,23 +253,24 @@ export const Clients: React.FC<ClientsProps> = ({ clients, movements, onAddClien
         <button
           onClick={() => handleModeSwitch('DELETE')}
           className={`relative overflow-hidden flex-1 basis-0 flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-xl group hover:-translate-y-1
-            ${viewMode === 'DELETE'
-              ? 'bg-gradient-to-br from-red-500 to-rose-600 border-red-500 text-white scale-105 shadow-rose-200'
+            ${(viewMode === 'DELETE_SEARCH' || viewMode === 'DELETE_CONFIRM')
+              ? 'bg-gradient-to-br from-red-500 to-red-600 border-red-500 text-white scale-105 shadow-red-200'
               : 'bg-white border-slate-100 text-slate-600 hover:border-red-200'
             }`}
         >
           {/* Background Decor */}
-          <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500 to-pink-600 rounded-bl-full -mr-10 -mt-10 transition-transform duration-500 ease-out group-hover:scale-110
-            ${viewMode === 'DELETE' ? 'opacity-20' : 'opacity-[0.03]'}`}
+          <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500 to-rose-600 rounded-bl-full -mr-10 -mt-10 transition-transform duration-500 ease-out group-hover:scale-110
+            ${(viewMode === 'DELETE_SEARCH' || viewMode === 'DELETE_CONFIRM') ? 'opacity-20' : 'opacity-[0.03]'}`}
           />
 
           <div className={`relative z-10 p-4 rounded-full transition-all duration-300 transform group-hover:rotate-6 shadow-md
-            ${viewMode === 'DELETE' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600 group-hover:bg-red-200'}`}>
+            ${(viewMode === 'DELETE_SEARCH' || viewMode === 'DELETE_CONFIRM') ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600 group-hover:bg-red-200'}`}>
             <Trash2 className="w-8 h-8" />
           </div>
+
           <div className="relative z-10 text-center">
             <span className="block text-xl font-bold tracking-tight">Elimina Cliente</span>
-            <span className={`block text-xs mt-1 font-medium ${viewMode === 'DELETE' ? 'text-red-100' : 'text-slate-400'}`}>Premi per cancellare un cliente</span>
+            <span className={`block text-xs mt-1 font-medium ${(viewMode === 'DELETE_SEARCH' || viewMode === 'DELETE_CONFIRM') ? 'text-red-100' : 'text-slate-400'}`}>Premi per cancellare un cliente</span>
           </div>
         </button>
       </div>
@@ -409,6 +410,15 @@ export const Clients: React.FC<ClientsProps> = ({ clients, movements, onAddClien
         {/* MODALITÀ: DELETE */}
         {viewMode === 'DELETE' && (
           <div className="space-y-4 animate-slideIn">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <div className="bg-red-100 p-2 rounded-lg text-red-600"><Trash2 className="w-6 h-6" /></div>
+                Elimina Cliente
+              </h2>
+              <button onClick={() => setViewMode('INITIAL')} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-4 items-center">
               <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -464,7 +474,7 @@ export const Clients: React.FC<ClientsProps> = ({ clients, movements, onAddClien
                               onClick={() => setClientToDelete(client)}
                               className="px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all shadow-sm hover:shadow-md font-medium text-sm flex items-center gap-2 ml-auto"
                             >
-                              <Trash2 className="w-4 h-4" /> Elimina
+                              <XCircle className="w-4 h-4" /> Elimina
                             </button>
                           </td>
                         </tr>
@@ -600,6 +610,15 @@ export const Clients: React.FC<ClientsProps> = ({ clients, movements, onAddClien
         {/* MODALITÀ: EDIT_SEARCH (Lista Clienti per selezione modifica) */}
         {viewMode === 'EDIT_SEARCH' && (
           <div className="space-y-4 animate-slideIn">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600"><Edit className="w-6 h-6" /></div>
+                Seleziona Cliente da Modificare
+              </h2>
+              <button onClick={() => setViewMode('INITIAL')} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-4 items-center">
               <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
