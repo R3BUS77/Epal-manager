@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import { ArrowUpRight, ArrowDownLeft, Users, Package, Calendar, TrendingUp, ChevronDown, AlertTriangle } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Users, Package, Calendar, TrendingUp, ChevronDown, AlertTriangle, RotateCcw } from 'lucide-react';
 import { BackupReminder } from '../components/BackupReminder';
 import { Client, Movement } from '../types';
 import { StatCard } from '../components/StatCard';
@@ -95,6 +95,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
     return Object.values(clientBalances).some(balance => balance < 0);
   }, [movements]);
 
+  const hasReturns = useMemo(() => {
+    // Check if ANY client has movements with returned > 0 total
+    const clientReturns: Record<string, number> = {};
+    movements.forEach(m => {
+      if (m.palletsReturned > 0) {
+        clientReturns[m.clientId] = (clientReturns[m.clientId] || 0) + m.palletsReturned;
+      }
+    });
+    return Object.values(clientReturns).some(val => val > 0);
+  }, [movements]);
+
 
   const handleClientSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const clientId = e.target.value;
@@ -137,18 +148,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
               Ultimi Movimenti
             </h3>
 
-            {/* Pulsante Warning Debitori (Visibile solo se necessario) */}
-            {hasDebtors && (
-              <button
-                onClick={() => navigate('/debtors')}
-                className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg border border-amber-200 transition-colors group h-10 shadow-sm"
-              >
-                <div className="p-1.5 bg-amber-200 text-amber-800 rounded-full group-hover:scale-110 transition-transform">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                </div>
-                <span className="font-bold text-sm">Clienti in debito</span>
-              </button>
-            )}
+            {/* Action Buttons Container */}
+            <div className="flex items-center gap-2">
+              {/* Pulsante Warning Debitori */}
+              {hasDebtors && (
+                <button
+                  onClick={() => navigate('/debtors')}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg border border-amber-200 transition-colors group h-10 shadow-sm"
+                >
+                  <div className="p-1.5 bg-amber-200 text-amber-800 rounded-full group-hover:scale-110 transition-transform">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="font-bold text-sm">Clienti in debito</span>
+                </button>
+              )}
+
+              {/* Pulsante Resi (Viola) */}
+              {hasReturns && (
+                <button
+                  onClick={() => navigate('/returns')}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors group h-10 shadow-sm"
+                >
+                  <div className="p-1.5 bg-purple-200 text-purple-800 rounded-full group-hover:scale-110 transition-transform">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="font-bold text-sm">Clienti con Reso</span>
+                </button>
+              )}
+            </div>
           </div>
           <div className="divide-y divide-slate-50 flex-1">
             {recentMovements.length === 0 ? (
@@ -231,7 +258,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ clients, movements }) => {
 
 
       </div>
-    </div>
+    </div >
 
   );
 };

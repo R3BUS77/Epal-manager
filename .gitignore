@@ -11,6 +11,14 @@ node_modules
 dist
 dist_electron
 *.local
+.env
+DATABASE/
+activity_log.txt
+*.json
+!package.json
+!tsconfig.json
+!.vscode/extensions.json
+!metadata.json
 
 # Editor directories and files
 .vscode/*

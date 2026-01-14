@@ -1,14 +1,16 @@
+
 import React, { useState } from 'react';
-import { Lock, RefreshCw, AlertOctagon } from 'lucide-react';
-import { LockInfo, acquireLock, releaseLock, forceAcquireLockAsync } from '../services/lockService';
+import { Lock, RefreshCw, Eye } from 'lucide-react';
+import { LockInfo, acquireLock, releaseLock } from '../services/lockService';
 
 interface LockScreenProps {
     currentLockInfo: LockInfo | null; // Info about who holds the lock (passed from App when failure occurs)
     operatorName: string;
     onSuccess: () => void;
+    onEnterReadOnly: () => void;
 }
 
-export const LockScreen: React.FC<LockScreenProps> = ({ currentLockInfo, operatorName, onSuccess }) => {
+export const LockScreen: React.FC<LockScreenProps> = ({ currentLockInfo, operatorName, onSuccess, onEnterReadOnly }) => {
     // We keep a local state of lock info in case we re-check and find a different person
     const [lockHolder, setLockHolder] = useState<LockInfo | null>(currentLockInfo);
     const [isChecking, setIsChecking] = useState(false);
@@ -24,26 +26,6 @@ export const LockScreen: React.FC<LockScreenProps> = ({ currentLockInfo, operato
             }
             setIsChecking(false);
         }, 500); // Small artificial delay for UX feel
-    };
-
-    const handleForceUnlock = async () => {
-        if (window.confirm("Sei SICURO di voler forzare lo sblocco?\n\nFallo SOLO se sei certo che l'altro utente non sta lavorando o se il suo PC è spento.\nC'è rischio di perdere dati se entrambi salvate contemporaneamente.")) {
-            setIsChecking(true);
-            try {
-                // Call robust force acquire logic
-                const result = await forceAcquireLockAsync(operatorName);
-                if (result.success) {
-                    onSuccess();
-                } else {
-                    alert("Impossibile forzare il blocco. Controllare i permessi di rete.");
-                    setLockHolder(result.info || null);
-                }
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setIsChecking(false);
-            }
-        }
     };
 
     return (
@@ -88,11 +70,11 @@ export const LockScreen: React.FC<LockScreenProps> = ({ currentLockInfo, operato
                         </button>
 
                         <button
-                            onClick={handleForceUnlock}
-                            className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-red-600 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                            onClick={onEnterReadOnly}
+                            className="w-full py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 border border-indigo-200"
                         >
-                            <AlertOctagon className="w-4 h-4" />
-                            Forza Sblocco (Emergenza)
+                            <Eye className="w-4 h-4" />
+                            Entra in Sola Lettura
                         </button>
                     </div>
                 </div>

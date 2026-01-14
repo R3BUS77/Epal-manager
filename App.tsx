@@ -8,14 +8,16 @@ import { DailyMovements } from './pages/DailyMovements';
 import { Settings } from './pages/Settings';
 import { ClientSelection } from './pages/ClientSelection';
 import { DebtorClients } from './pages/DebtorClients';
+import { ReturnedClients } from './pages/ReturnedClients';
 import { CalendarPage } from './pages/CalendarPage';
 import { Client, Movement, AppData } from './types';
 import { getClientsAsync, getMovementsAsync, saveClientsAsync, saveMovementsAsync, getDbPath } from './services/storageService';
 import { acquireLockAsync, releaseLockAsync, LockInfo } from './services/lockService';
+import { logActionAsync } from './services/logService'; // Import Log
 import { OperatorModal } from './components/OperatorModal';
 import { DatabaseSetupModal } from './components/DatabaseSetupModal';
 import { LockScreen } from './components/LockScreen';
-import { RefreshCw, Database } from 'lucide-react'; // Icone aggiunte per schermata di errore
+import { RefreshCw, Database, Eye } from 'lucide-react'; // Added Eye
 
 // Generatore ID semplice
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -48,6 +50,9 @@ function App() {
   // Nuovo stato per configurazione DB
   const [isDbConfigured, setIsDbConfigured] = useState<boolean>(!!getDbPath());
   const [isDbSkipped, setIsDbSkipped] = useState(false);
+
+  // Stato Sola Lettura
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   // Stato Lock
   const [isLocked, setIsLocked] = useState(false); // Abbiamo il lock?
@@ -94,8 +99,10 @@ function App() {
 
   // Tenta di acquisire lock quando operatore è impostato (Asincrono)
   useEffect(() => {
-    // ... existing lock logic
     const tryLock = async () => {
+      // Se siamo in sola lettura, non tentare lock
+      if (isReadOnly) return;
+
       if (isDbConfigured && operatorName && !isLocked) {
         // Only show loading if we are NOT already loaded to avoid stutter
         // actually acquiring lock is fast usually
@@ -104,13 +111,26 @@ function App() {
         if (result.success) {
           setIsLocked(true);
           setLockConflict(null);
+          // LOG LOGIN
+          logActionAsync(operatorName, 'LOGIN', 'Accesso effettuato con successo (Lock acquisito)');
+          window.focus();
         } else {
           setLockConflict(result.info || null);
         }
       }
     };
     tryLock();
-  }, [isDbConfigured, operatorName, isLocked]);
+  }, [isDbConfigured, operatorName, isLocked, isReadOnly]);
+
+  // Extra Focus Fix when returning from Lock Screen specifically
+  useEffect(() => {
+    if ((isLocked || isReadOnly) && !lockConflict) {
+      // Ensure renderer has focus so inputs work immediately
+      window.focus();
+      // Small delay to beat any React rendering cycle
+      setTimeout(() => window.focus(), 100);
+    }
+  }, [isLocked, lockConflict, isReadOnly]);
 
   // Rilascia lock su chiusura
   useEffect(() => {
@@ -126,16 +146,16 @@ function App() {
 
   // Salva modfiche (Asincrono - fire and forget, o potremmo mostrare stato salvataggio)
   useEffect(() => {
-    if (isLoaded && isDbConfigured && isLocked) {
+    if (isLoaded && isDbConfigured && isLocked && !isReadOnly) {
       saveClientsAsync(clients);
     }
-  }, [clients, isLoaded, isDbConfigured, isLocked]);
+  }, [clients, isLoaded, isDbConfigured, isLocked, isReadOnly]);
 
   useEffect(() => {
-    if (isLoaded && isDbConfigured && isLocked) {
+    if (isLoaded && isDbConfigured && isLocked && !isReadOnly) {
       saveMovementsAsync(movements);
     }
-  }, [movements, isLoaded, isDbConfigured, isLocked]);
+  }, [movements, isLoaded, isDbConfigured, isLocked, isReadOnly]);
 
   useEffect(() => {
     if (isLoaded && isDbConfigured) {
@@ -183,6 +203,7 @@ function App() {
         setClients([]);
         setMovements([]);
         setIsLoaded(false);
+        setIsReadOnly(false);
 
         // 4. Reset Lock State (triggers re-acquisition on new path via useEffect)
         setIsLocked(false);
@@ -199,57 +220,78 @@ function App() {
   const handleLockSuccess = () => {
     setIsLocked(true);
     setLockConflict(null);
+    if (operatorName) logActionAsync(operatorName, 'RETRY_LOGIN', 'Lock acquisito dopo attesa');
   }
+
+  const handleReadOnlyEntry = () => {
+    setIsReadOnly(true);
+    setLockConflict(null);
+    // No lock acquisition, logic handled by state
+    if (operatorName) logActionAsync(operatorName, 'LOGIN_READ_ONLY', 'Accesso in modalità Sola Lettura');
+  };
 
   // --- Handlers CRUD (Passati alla UI) ---
   const addClient = (client: Omit<Client, 'id'>) => {
-    if (!isDbConfigured) return;
-    setClients([...clients, { ...client, id: generateId() }]);
+    if (!isDbConfigured || isReadOnly) return;
+    const newId = generateId();
+    setClients([...clients, { ...client, id: newId }]);
+    logActionAsync(operatorName, 'ADD_CLIENT', `Aggiunto cliente: ${client.name} (ID: ${newId})`);
   };
 
   const updateClient = (id: string, updated: Partial<Client>) => {
-    if (!isDbConfigured) return;
+    if (!isDbConfigured || isReadOnly) return;
     setClients(clients.map(c => c.id === id ? { ...c, ...updated } : c));
+    logActionAsync(operatorName, 'UPDATE_CLIENT', `Modificato cliente ID: ${id}`);
   };
 
   const deleteClient = (id: string) => {
-    if (!isDbConfigured) return;
+    if (!isDbConfigured || isReadOnly) return;
     const pending = movements.filter(m => m.clientId === id).length;
     if (pending > 0) {
       // Alert gestito dalla UI generalmente, ma qui blocchiamo se necessario.
       // Per ora, eliminiamo. La UI di solito conferma.
     }
+    const clientName = clients.find(c => c.id === id)?.name || id;
     setClients(clients.filter(c => c.id !== id));
+    logActionAsync(operatorName, 'DELETE_CLIENT', `Eliminato cliente: ${clientName} (ID: ${id})`);
   };
 
   const addMovement = (movement: Omit<Movement, 'id'>) => {
-    if (!isDbConfigured) return;
+    if (!isDbConfigured || isReadOnly) return;
     setMovements([...movements, { ...movement, id: generateId() }]);
+    logActionAsync(operatorName, 'ADD_MOVEMENT', `Aggiunto movimento per cliente ID: ${movement.clientId}`);
   };
 
   const updateMovement = (id: string, updated: Partial<Movement>) => {
-    if (!isDbConfigured) return;
+    if (!isDbConfigured || isReadOnly) return;
     setMovements(movements.map(m => m.id === id ? { ...m, ...updated } : m));
+    logActionAsync(operatorName, 'UPDATE_MOVEMENT', `Modificato movimento ID: ${id}`);
   };
 
   const deleteMovement = (id: string) => {
-    if (!isDbConfigured) return;
+    if (!isDbConfigured || isReadOnly) return;
     setMovements(movements.filter(m => m.id !== id));
+    logActionAsync(operatorName, 'DELETE_MOVEMENT', `Eliminato movimento ID: ${id}`);
   };
 
   const handleImport = (data: Partial<AppData>) => {
+    if (isReadOnly) return;
     if (data.clients) setClients(data.clients);
     if (data.movements) setMovements(data.movements);
     // Auto-salvataggio via useEffect
+    logActionAsync(operatorName, 'IMPORT_DATA', 'Importazione dati eseguita');
   };
 
   // Logout fluido
   const handleLogout = async () => {
+    logActionAsync(operatorName, 'LOGOUT', 'Uscita dal programma');
     // Release lock
     if (isLocked) {
       await releaseLockAsync();
       setIsLocked(false);
     }
+    // Reset Read Only
+    setIsReadOnly(false);
     // Reset Operator Name -> This triggers OperatorModal instantly
     setOperatorName('');
   };
@@ -330,6 +372,7 @@ function App() {
       currentLockInfo={lockConflict}
       operatorName={operatorName}
       onSuccess={handleLockSuccess}
+      onEnterReadOnly={handleReadOnlyEntry}
     />;
   }
 
@@ -353,6 +396,17 @@ function App() {
           >
             Configura Ora
           </button>
+        </div>
+      )}
+
+      {/* Banner Sola Lettura */}
+      {isReadOnly && (
+        <div className="bg-amber-100 border-b border-amber-200 px-4 py-2 flex items-center justify-center z-[100] shadow-md animate-in slide-in-from-top duration-300">
+          <p className="text-sm text-amber-900 font-bold flex items-center gap-2">
+            <Eye className="w-5 h-5 text-amber-600" />
+            <span>MODALITÀ SOLA LETTURA ATTIVA</span>
+            <span className="hidden sm:inline font-normal text-amber-800">- Le modifiche non verranno salvate</span>
+          </p>
         </div>
       )}
 
@@ -394,6 +448,12 @@ function App() {
                 onAddMovement={addMovement}
                 onUpdateMovement={updateMovement}
                 onDeleteMovement={deleteMovement}
+              />
+            } />
+            <Route path="/returns" element={
+              <ReturnedClients
+                clients={clients}
+                movements={movements}
               />
             } />
             <Route path="/calendar" element={<CalendarPage />} />

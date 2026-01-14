@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Client, Movement } from '../types';
-import { Save, Calendar, CheckCircle, PackageCheck, Truck, ArrowRightLeft, RotateCcw, Search, AlertTriangle, X } from 'lucide-react';
+import { Save, Calendar, CheckCircle, PackageCheck, Truck, ArrowRightLeft, Search, AlertTriangle, X } from 'lucide-react';
 
 interface DailyMovementsProps {
     clients: Client[];
@@ -22,7 +22,6 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
         good: '',      // String per permettere input vuoti o formule temporanee
         shipping: '',
         exchange: '',
-        returned: '',
     });
 
     const [successMsg, setSuccessMsg] = useState('');
@@ -36,7 +35,6 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
     const goodRef = useRef<HTMLInputElement>(null);
     const shippingRef = useRef<HTMLInputElement>(null);
     const exchangeRef = useRef<HTMLInputElement>(null);
-    const returnedRef = useRef<HTMLInputElement>(null);
     const saveButtonRef = useRef<HTMLButtonElement>(null);
 
     // Handle Enter key for Alert Modal
@@ -55,7 +53,7 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
 
     // Reset dopo salvataggio
     const resetForm = (keepDate = true) => {
-        setInputs({ good: '', shipping: '', exchange: '', returned: '' });
+        setInputs({ good: '', shipping: '', exchange: '' });
         setClientSearch('');
         setSelectedClient(null);
         setDuplicateWarning(false);
@@ -130,15 +128,16 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
         const valGood = parseValue(inputs.good);
         const valShipping = parseValue(inputs.shipping);
         const valExchange = parseValue(inputs.exchange);
-        const valReturned = parseValue(inputs.returned);
+        // Reso rimosso da input -> sempre 0
+        const valReturned = 0;
 
         // 1. Check Vuoto
-        if (valGood === 0 && valShipping === 0 && valExchange === 0 && valReturned === 0) {
+        if (valGood === 0 && valShipping === 0 && valExchange === 0) {
             // REPLACED NATIVE ALERT
             setAlertModal({
                 isOpen: true,
                 title: 'Nessun Valore Inserito',
-                message: 'Inserisci almeno un valore in Buono, Spedizioni, Misto o Reso per salvare.',
+                message: 'Inserisci almeno un valore in Buono, Spedizioni o Misto per salvare.',
                 type: 'warning'
             });
             return;
@@ -151,8 +150,9 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
             m.date === selectedDate &&
             m.palletsGood === valGood &&
             m.palletsShipping === valShipping &&
-            m.palletsExchange === valExchange &&
-            m.palletsReturned === valReturned
+            m.palletsExchange === valExchange
+            // Ignore returned check or assume 0 matches 0 if existing records have 0. 
+            // If existing records have returned > 0, they are technically different, which is correct.
         );
 
         if (isDuplicate && !duplicateWarning) {
@@ -169,7 +169,7 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
             palletsGood: valGood,
             palletsShipping: valShipping,
             palletsExchange: valExchange,
-            palletsReturned: valReturned
+            palletsReturned: valReturned // Sempre 0
         });
 
         setSuccessMsg('Salvato!');
@@ -191,9 +191,6 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
                     break;
                 case 'exchange':
                     shippingRef.current?.focus();
-                    break;
-                case 'returned':
-                    exchangeRef.current?.focus();
                     break;
             }
             return;
@@ -225,10 +222,7 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
                     exchangeRef.current?.focus();
                     break;
                 case 'exchange':
-                    returnedRef.current?.focus();
-                    break;
-                case 'returned':
-                    // Ultimo campo: tenta il salvataggio
+                    // Ultimo campo -> Salva
                     handleSave();
                     break;
             }
@@ -432,27 +426,6 @@ export const DailyMovements: React.FC<DailyMovementsProps> = ({ clients, onAddMo
                             />
                         </div>
                     </div>
-
-                    {/* Reso */}
-                    <div className="flex items-center gap-6 pt-6 border-t border-slate-100 border-dashed">
-                        <div className="w-1/3 flex items-center gap-3 text-rose-600">
-                            <div className="p-2 bg-rose-50 rounded-lg"><RotateCcw className="w-6 h-6" /></div>
-                            <span className="font-bold text-lg">RESO</span>
-                        </div>
-                        <div className="flex-1">
-                            <input
-                                ref={returnedRef}
-                                type="text"
-                                className="w-full text-right px-4 py-1.5 text-base font-bold font-mono text-rose-600 bg-rose-50/30 border border-rose-200 rounded-xl focus:bg-rose-50 focus:scale-[1.02] focus:shadow-xl focus:outline-none focus:ring-4 focus:ring-rose-500/30 focus:border-rose-500 transition-all duration-200 transform placeholder:text-rose-200"
-                                placeholder="0"
-                                value={inputs.returned}
-                                onChange={e => handleInputChange('returned', e.target.value)}
-                                onBlur={() => handleBlur('returned')}
-                                onKeyDown={e => handleKeyDown(e, 'returned')}
-                            />
-                        </div>
-                    </div>
-
                 </div>
 
                 {/* Footer Actions */}

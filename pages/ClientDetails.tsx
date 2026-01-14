@@ -89,12 +89,30 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
 
   // Filter movements for Table List
   const filteredMovements = useMemo(() => {
+    const isReturnsView = (location.state as any)?.from === '/returns';
+    const isDebtorsView = (location.state as any)?.from === '/debtors';
+
     return clientAllMovements.filter(m => {
-      if (!startDate && !endDate) return true;
-      const mDate = m.date;
-      return (!startDate || mDate >= startDate) && (!endDate || mDate <= endDate);
+      // Date Filter
+      if (startDate && m.date < startDate) return false;
+      if (endDate && m.date > endDate) return false;
+
+      // Returns View Filter
+      if (isReturnsView) {
+        if ((m.palletsReturned || 0) <= 0) return false;
+      }
+
+      // Debtors View Filter
+      if (isDebtorsView) {
+        const sumOut = (m.palletsShipping || 0) + (m.palletsExchange || 0) + (m.palletsReturned || 0);
+        const sumIn = (m.palletsGood || 0);
+        const netBalance = sumOut - sumIn;
+        if (netBalance >= 0) return false; // Show only negative balance (Debt)
+      }
+
+      return true;
     });
-  }, [clientAllMovements, startDate, endDate]);
+  }, [clientAllMovements, startDate, endDate, location.state]);
 
   // Calculate stats based on FILTERED movements (Period Stats)
   const periodStats = useMemo(() => {
@@ -233,6 +251,22 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ clients, movements
               </span>
             )}
             <span className="font-bold">{client.name}</span>
+
+            {/* Returns View Badge */}
+            {(location.state as any)?.from === '/returns' && (
+              <span className="ml-2 px-3 py-1 bg-purple-100 text-purple-700 text-sm font-bold rounded-full border border-purple-200 flex items-center gap-1">
+                <RotateCcw className="w-3.5 h-3.5" />
+                Solo Resi
+              </span>
+            )}
+
+            {/* Debtors View Badge */}
+            {(location.state as any)?.from === '/debtors' && (
+              <span className="ml-2 px-3 py-1 bg-red-100 text-red-700 text-sm font-bold rounded-full border border-red-200 flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Solo Debiti
+              </span>
+            )}
           </h1>
           <div className="text-slate-500 mt-1 space-y-0.5">
             <p className="flex items-center gap-2 text-sm md:text-base">

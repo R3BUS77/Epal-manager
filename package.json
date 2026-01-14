@@ -3,7 +3,7 @@
   "private": true,
   "version": "4.0.0",
   "type": "module",
-  "author": "Nicolini Loris <r3bus77@gmail.com>",
+  "author": "r3bus77",
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on tcp:3000 && electron .\"",
     "build": "vite build",
@@ -15,7 +15,7 @@
   "build": {
     "appId": "com.epalmanager.pro",
     "productName": "Epal Manager",
-    "copyright": "Copyright © 2025 Nicolini Loris",
+    "copyright": "Copyright © 2025 r3bus77",
     "win": {
       "target": "dir",
       "icon": "electron/icon.png"
