@@ -46,4 +46,4 @@ Per aggiornare una installazione esistente senza reinstallare tutto:
 
 ---
 **Autore:** r3bus77
-**Copyright:** © 2025
+**Anno:** 2025-2026
