@@ -1,20 +1,49 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Epal Manager
 
-# Run and deploy your AI Studio app
+Software di gestione per la contabilità e movimentazione di bancali EPAL.
 
-This contains everything you need to run your app locally.
+## Requisiti
 
-View your app in AI Studio: https://ai.studio/apps/drive/1Y22YZV1jGWce5oQIuebj729g7I1TbNVQ
+*   Windows 10 o superiore
+*   Node.js (versione 16 o superiore) installato sul sistema
 
-## Run Locally
+## Installazione (Sviluppo)
 
-**Prerequisites:**  Node.js
+1.  Clonare la repository:
+    ```bash
+    git clone https://github.com/R3BUS77/Epal-manager.git
+    ```
+2.  Entrare nella cartella del progetto:
+    ```bash
+    cd Epal-Manager
+    ```
+3.  Installare le dipendenze:
+    ```bash
+    npm install
+    ```
 
+## Utilizzo
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Modalità Sviluppo
+Per avviare l'applicazione in modalità di test (con ricaricamento automatico):
+
+```bash
+npm run dev
+```
+
+### Compilazione (Build)
+Per creare l'eseguibile finale per Windows (x64):
+
+```bash
+npm run electron:build:x64
+```
+Il file eseguibile verrà creato nella cartella `dist_electron/win-unpacked`.
+
+## Aggiornamento Manuale
+Per aggiornare una installazione esistente senza reinstallare tutto:
+1.  Prendere il file `app.asar` dalla build più recente (cartella `resources`).
+2.  Sostituirlo nella cartella `resources` dell'installazione di destinazione.
+
+---
+**Autore:** r3bus77
+**Copyright:** © 2025
